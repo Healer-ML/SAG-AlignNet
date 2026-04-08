@@ -5,7 +5,7 @@ Official implementation of the paper:
 *(Submitted to xxx, 2026).*
 
 <p align="center">
-  <img src="assets/model.png" width="800">
+  <img src="asset/model.png" width="800">
 </p>
 
 ---
