@@ -15,11 +15,19 @@ from pathlib import Path, PurePosixPath
 
 
 DATASETS = {
-    "FRS-CMR": ("farm", [("farm",)]),
-    "CroDis4CMR": ("crop", [("data_cddm", "crop"), ("data_CDDM", "crop")]),
-    "CCPRD": ("agr", [("agr",)]),
-    "GjPest4CMR": ("wp", [("wp",)]),
-    "FruDis4CMR": ("fruit", [("data_cddm", "fruit"), ("data_CDDM", "fruit")]),
+    "FRS-CMR": [(("FRS-CMR",), "FRS-CMR"), (("farm",), "farm")],
+    "CroDis4CMR": [
+        (("CroDis4CMR",), "CroDis4CMR"),
+        (("data_cddm", "crop"), "crop"),
+        (("data_CDDM", "crop"), "crop"),
+    ],
+    "CCPRD": [(("CCPRD",), "CCPRD"), (("agr",), "agr")],
+    "GjPest4CMR": [(("GjPest4CMR",), "GjPest4CMR"), (("wp",), "wp")],
+    "FruDis4CMR": [
+        (("FruDis4CMR",), "FruDis4CMR"),
+        (("data_cddm", "fruit"), "fruit"),
+        (("data_CDDM", "fruit"), "fruit"),
+    ],
 }
 
 SPLIT_ALIASES = {
@@ -32,17 +40,17 @@ SPLIT_ALIASES = {
 }
 
 
-def find_source_dataset(source_root, candidates, internal_name):
-    for components in candidates:
+def find_source_dataset(source_root, candidates):
+    for components, annotation_name in candidates:
         root = source_root.joinpath(*components)
-        annotation = root / "json" / (internal_name + ".json")
+        annotation = root / "json" / (annotation_name + ".json")
         image_dir = next((root / name for name in ("img", "imgs") if (root / name).is_dir()), None)
         if annotation.is_file() and image_dir is not None:
             return root, image_dir, annotation
-    checked = [str(source_root.joinpath(*parts)) for parts in candidates]
+    checked = [str(source_root.joinpath(*parts)) for parts, _ in candidates]
     raise FileNotFoundError(
-        "Could not find {}/json/{}.json and img|imgs under: {}".format(
-            " or ".join(checked), internal_name, ", ".join(checked)
+        "Could not find an annotation JSON and img|imgs directory under: {}".format(
+            ", ".join(checked)
         )
     )
 
@@ -163,7 +171,7 @@ def write_json(path, records):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--source-root", required=True, type=Path, help="Root containing farm, agr, wp, and data_cddm")
+    parser.add_argument("--source-root", required=True, type=Path, help="Root containing the source dataset folders")
     parser.add_argument("--output-root", type=Path, default=Path("data/AgriSearch"))
     parser.add_argument("--datasets", nargs="+", choices=tuple(DATASETS), default=list(DATASETS))
     parser.add_argument("--check-images", action="store_true", help="verify every annotation image path exists")
@@ -184,14 +192,15 @@ def main():
     print("Dataset         Records  Captions  Train IDs  Train/Val/Test")
     print("-" * 70)
     for benchmark_name in args.datasets:
-        internal_name, candidates = DATASETS[benchmark_name]
-        _, source_images, source_json = find_source_dataset(source_root, candidates, internal_name)
+        candidates = DATASETS[benchmark_name]
+        _, source_images, source_json = find_source_dataset(source_root, candidates)
         records = normalized_records(
             source_json, source_images, args.generate_splits, args.seed, args.ratios, args.check_images
         )
         target_root = output_root / benchmark_name
         link_image_directory(source_images, target_root / "img")
-        write_json(target_root / "json" / (internal_name + ".json"), records)
+        annotation_path = target_root / "json" / (benchmark_name + ".json")
+        write_json(annotation_path, records)
         split_counts = Counter(item["split"] for item in records)
         train_ids = len({item["id"] for item in records if item["split"] == "train"})
         caption_count = sum(len(item["captions"]) for item in records)
@@ -199,7 +208,7 @@ def main():
         print("{:<15} {:>7} {:>9} {:>10}  {}".format(
             benchmark_name, len(records), caption_count, train_ids, split_text
         ))
-        print("  annotations: {}".format(target_root / "json" / (internal_name + ".json")))
+        print("  annotations: {}".format(annotation_path))
         print("  image link:  {} -> {}".format(target_root / "img", source_images.resolve()))
 
 

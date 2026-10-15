@@ -14,7 +14,15 @@ from .cuhkpedes import CUHKPEDES
 from .icfgpedes import ICFGPEDES
 from .rstpreid import RSTPReid
 
-__factory = {'CUHK-PEDES': CUHKPEDES, 'ICFG-PEDES': ICFGPEDES, 'crop': RSTPReid,'agr': RSTPReid,'wp': RSTPReid,'farm': RSTPReid,'fruit': RSTPReid}
+__factory = {
+    "CUHK-PEDES": CUHKPEDES,
+    "ICFG-PEDES": ICFGPEDES,
+    "FRS-CMR": RSTPReid,
+    "CroDis4CMR": RSTPReid,
+    "CCPRD": RSTPReid,
+    "GjPest4CMR": RSTPReid,
+    "FruDis4CMR": RSTPReid,
+}
 
 
 def build_transforms(img_size=(384, 128), aug=False, is_train=True):

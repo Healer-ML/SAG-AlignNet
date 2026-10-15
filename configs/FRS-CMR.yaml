@@ -1,5 +1,5 @@
 base_config: base.yaml
-dataset_name: farm
+dataset_name: FRS-CMR
 root_dir: data/AgriSearch/FRS-CMR
 mask_pro: 0.4
 soft_weight: 0.55

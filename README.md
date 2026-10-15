@@ -2,88 +2,39 @@
 
 # SAG-AlignNet
 
-### Semantic-Aligned Grounding for Agricultural Image–Text Retrieval
+### Image–Text Retrieval for Agricultural Datasets
 
-**A reproducible codebase for cross-modal retrieval on AgriSearch.**
-
-![Python](https://img.shields.io/badge/Python-3.8-3776AB?logo=python&logoColor=white)
-![PyTorch](https://img.shields.io/badge/PyTorch-2.1.1%2Bcu121-EE4C2C?logo=pytorch&logoColor=white)
-![Task](https://img.shields.io/badge/Task-Image--Text%20Retrieval-496A81)
-![Dataset](https://img.shields.io/badge/Dataset-AgriSearch-658C6A)
+Semantic-aligned grounding · Cross-modal prototype distillation · Collaborative retrieval
 
 <br>
 
-<img src="asset/model.png" alt="SAG-AlignNet model architecture" width="980">
+<img src="asset/model.png" alt="SAG-AlignNet architecture" width="920">
 
 <br>
 
-*Overview of SAG-AlignNet: semantic-aligned grounding, cross-modal prototype distillation, and collaborative retrieval.*
+*SAG-AlignNet model overview.*
 
 </div>
 
 ---
 
-## Overview
+## Datasets
 
-SAG-AlignNet is an image–text retrieval implementation for agricultural data. It combines semantic-aligned grounding with cross-modal prototype distillation and collaborative retrieval to learn a shared image–text representation. This repository provides the model implementation, dataset preparation utilities, experiment configurations, training and evaluation entry points, and released inference checkpoints.
+| Dataset | Config | Checkpoint |
+|:--|:--|:--|
+| FRS-CMR | `configs/FRS-CMR.yaml` | `checkpoints/FRS-CMR.pth` |
+| CroDis4CMR | `configs/CroDis4CMR.yaml` | `checkpoints/CroDis4CMR.pth` |
+| CCPRD | `configs/CCPRD.yaml` | `checkpoints/CCPRD.pth` |
+| GjPest4CMR | `configs/GjPest4CMR.yaml` | `checkpoints/GjPest4CMR.pth` |
+| FruDis4CMR | `configs/FruDis4CMR.yaml` | `checkpoints/FruDis4CMR.pth` |
 
-> **Data availability.** AgriSearch images and annotations are not included. Prepare the dataset locally and follow the layout and commands below before training or evaluation.
-
-## Contents
-
-- [Benchmark datasets](#benchmark-datasets)
-- [Environment](#environment)
-- [Dataset preparation](#dataset-preparation)
-- [Training](#training)
-- [Evaluation](#evaluation)
-- [Checkpoints](#checkpoints)
-- [Reproducibility notes](#reproducibility-notes)
-
-## Benchmark datasets
-
-The benchmark covers five agricultural image–text retrieval datasets. Counts below follow the dataset statistics used by the project.
-
-| Dataset | Classes | Images | Train | Val | Test |
-|:--|--:|--:|--:|--:|--:|
-| FRS-CMR | 13 | 22,602 | 18,081 | 2,260 | 2,261 |
-| CroDis4CMR | 13 | 9,460 | 7,567 | 946 | 947 |
-| CCPRD | 102 | 6,628 | 5,302 | 663 | 663 |
-| GjPest4CMR | 17 | 9,496 | 7,596 | 949 | 951 |
-| FruDis4CMR | 17 | 18,524 | 14,820 | 1,852 | 1,852 |
-
-The repository does not redistribute these datasets. Annotation files available in earlier project materials had slightly different totals for CCPRD and FruDis4CMR; use the annotations that match your local dataset and record their version when reporting results.
-
-## Environment
-
-The reference environment uses Python 3.8, PyTorch 2.1.1, torchvision 0.16.1, and CUDA 12.1. Create it from the checked-in environment file:
-
-```bash
-conda env create -f environment.yml
-conda activate sag-alignnet
-python -m pip install -r requirements.txt
-```
-
-The original training environment named `yu` used PyTorch 2.0.1 with CUDA 11.8. The checked-in requirements describe the reproducible environment for this repository; if using the historical environment, install its matching PyTorch and torchvision builds rather than mixing CUDA wheel versions.
-
-CLIP ViT-B/16 initialization weights are downloaded to `~/.cache/clip` when required. For an offline run, set the corresponding `pretrain_choice` in the experiment configuration to a local pretrained-weight path.
-
-## Dataset preparation
-
-The preparation utility expects source folders for `farm`, `agr`, and `wp`, plus `data_cddm/crop` and `data_cddm/fruit`. Each dataset has an image folder (`img` or `imgs`) and a `json/<dataset>.json` annotation file. For example:
+Dataset images and annotations are not included. Prepare the data locally. The standard output layout is:
 
 ```text
-<source-root>/
-├── farm/{img|imgs}/, json/farm.json
-├── agr/{img|imgs}/, json/agr.json
-├── wp/{img|imgs}/, json/wp.json
-└── data_cddm/
-    ├── crop/{img|imgs}/, json/crop.json
-    └── fruit/{img|imgs}/, json/fruit.json
+data/AgriSearch/<dataset>/{img,json/<dataset>.json}
 ```
 
-Each annotation record must include `id`, `img_path`, `captions` (a list of strings), and `split`. The script normalizes `dev`, `valid`, and `validation` to `val`, preserves image IDs, links image folders, and copies normalized JSON files. Its default operation preserves supplied splits. To generate deterministic 80/10/10 splits, use `--generate-splits --seed 1`.
-
-For example:
+Prepare annotations and check image paths:
 
 ```bash
 python tools/prepare_agrisearch.py \
@@ -92,90 +43,53 @@ python tools/prepare_agrisearch.py \
   --check-images
 ```
 
-To generate the deterministic train/validation/test split files with seed 1, add:
+The script preserves existing splits. To create new deterministic 80/10/10 splits, add `--generate-splits --seed 1`.
+
+## Environment
+
+Reference setup: Python 3.8, PyTorch 2.1.1, CUDA 12.1.
 
 ```bash
-  --generate-splits --seed 1
+conda env create -f environment.yml
+conda activate sag-alignnet
+pip install -r requirements.txt
 ```
 
-The expected output folders are `data/AgriSearch/{FRS-CMR,CroDis4CMR,CCPRD,GjPest4CMR,FruDis4CMR}/{img,json}`. The script prints record, caption, training-ID, and split counts. Run `python tools/prepare_agrisearch.py --help` for all options. It exits with a nonzero status for malformed annotations, missing images when `--check-images` is enabled, or non-contiguous training IDs. Use the printed counts as the authoritative totals for your local annotations.
+The first run downloads the CLIP ViT-B/16 initialization weights. For offline use, set `pretrain_choice` in the config to a local weight file.
 
-## Training
+## Train
 
-The configurations under `configs/agrisearch/` use 30 epochs, seed 1, deterministic PyTorch settings, and validation split `val` for model selection. Dataset-to-config mapping:
-
-| AgriSearch dataset | Config | Internal key |
-|:--|:--|:--|
-| FRS-CMR | `configs/agrisearch/FRS-CMR.yaml` | `farm` |
-| CroDis4CMR | `configs/agrisearch/CroDis4CMR.yaml` | `crop` |
-| CCPRD | `configs/agrisearch/CCPRD.yaml` | `agr` |
-| GjPest4CMR | `configs/agrisearch/GjPest4CMR.yaml` | `wp` |
-| FruDis4CMR | `configs/agrisearch/FruDis4CMR.yaml` | `fruit` |
-
-A single-device run:
+Each config uses 30 epochs and seed 1. For example, train on CCPRD with one GPU:
 
 ```bash
-python train.py --config-file configs/agrisearch/CCPRD.yaml
+python train.py --config-file configs/CCPRD.yaml
 ```
 
-For two GPUs (for example GPU 0 and GPU 1):
+Use GPU 0 and GPU 1:
 
 ```bash
-CUDA_VISIBLE_DEVICES=0,1 torchrun --standalone --nproc_per_node=2 train.py \
-  --config-file configs/agrisearch/CCPRD.yaml
+CUDA_VISIBLE_DEVICES=0,1 torchrun --standalone --nproc_per_node=2 \
+  train.py --config-file configs/CCPRD.yaml
 ```
 
-Batch size is per process/GPU when using `torchrun`. Training selects the checkpoint with the highest validation bidirectional mR. Run artifacts, including the resolved config, training log, TensorBoard events, and `best.pth`, are written under `outputs/<internal-key>/<timestamp>_sag-alignnet/`. Optional shell wrappers are available in `scripts/`.
+Replace `CCPRD.yaml` with another dataset config to change the dataset. The best validation checkpoint and training logs are written under `outputs/`.
 
-## Evaluation
+## Evaluate
 
-Evaluate a released checkpoint on the validation split and save the complete metrics as JSON:
+Evaluate a checkpoint and save bidirectional retrieval metrics:
 
 ```bash
 python evaluate.py \
-  --config-file configs/agrisearch/CCPRD.yaml \
+  --config-file configs/CCPRD.yaml \
   --checkpoint checkpoints/CCPRD.pth \
   --split val \
-  --eval_output outputs/eval/CCPRD_val.json
+  --eval_output outputs/CCPRD_val.json
 ```
 
-To evaluate a checkpoint selected during a new training run on the held-out test split:
+The output includes I2T and T2I R@1, R@5, R@10, mAP, and mINP, plus bidirectional mR. Use `--split test` for test-set evaluation.
 
-```bash
-python evaluate.py \
-  --config-file configs/agrisearch/CCPRD.yaml \
-  --checkpoint outputs/agr/<timestamp>_sag-alignnet/best.pth \
-  --split test \
-  --eval_output outputs/eval/CCPRD_test.json
-```
+## Checkpoints and code
 
-The evaluator reports text-to-image (T2I) and image-to-text (I2T) retrieval metrics, including R@1, R@5, R@10, mAP, and mINP. The bidirectional mean Recall is computed as
+Checkpoints are model-only files tracked with Git LFS. The released weights are historical runs whose checkpoint selection used the test split; use validation-based selection for new experiments. See [`checkpoints/README.md`](checkpoints/README.md) for details.
 
-\[
-\mathrm{mR}=\frac{1}{6}\sum_{d\in\{\mathrm{I2T},\mathrm{T2I}\}}
-\left(R@1_d+R@5_d+R@10_d\right),
-\]
-
-and is reported on a percentage scale. The evaluator prints T2I and I2T rows and writes JSON results. Check `python evaluate.py --help` for additional evaluation options.
-
-## Checkpoints
-
-Inference checkpoints are stored under `checkpoints/` and tracked with Git LFS. Their dataset and provenance metadata are recorded in `checkpoints/metadata.json`. These are model-only artifacts; optimizer and scheduler states are not included.
-
-**Evaluation caveat.** The historical released weights were selected as `best.pth` using the test split. Their test-set metrics are therefore not an unbiased held-out estimate. For a clean experimental result, train with validation-based model selection and evaluate the selected checkpoint on the untouched test split, as in the commands above.
-
-## Reproducibility notes
-
-- Use the checked-in YAML configuration and record any local path or hyperparameter changes.
-- The default seed is 1; the split-generation utility also accepts an explicit seed.
-- Keep training/validation/test partitions fixed when comparing methods.
-- Record the checkpoint, dataset annotation version, software environment, and evaluation JSON together with reported metrics.
-- Do not compare historical test-selected checkpoint scores as if they were produced by validation-only model selection.
-
----
-
-<div align="center">
-
-**SAG-AlignNet · AgriSearch image–text retrieval**
-
-</div>
+The core code is grouped under `src/`; configs and data-preparation tools are easy to find at the repository root.

@@ -22,7 +22,7 @@ class RSTPReid(BaseDataset):
         super(RSTPReid, self).__init__()
         self.dataset_dir = root
         self.img_dir = op.join(self.dataset_dir, 'img/')
-        # Some agricultural datasets (including farm) use ``imgs``.
+        # Accept either common name for the image directory.
         if not op.exists(self.img_dir):
             self.img_dir = op.join(self.dataset_dir, 'imgs/')
 

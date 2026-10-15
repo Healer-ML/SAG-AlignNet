@@ -74,7 +74,7 @@ def _parser():
     parser.add_argument("--target_lr", type=float, default=0.0)
     parser.add_argument("--power", type=float, default=0.9)
 
-    parser.add_argument("--dataset_name", default="agr")
+    parser.add_argument("--dataset_name", default="CCPRD")
     parser.add_argument("--sampler", default="random", choices=("random", "identity"))
     parser.add_argument("--num_instance", type=int, default=4)
     parser.add_argument("--root_dir", default="data/AgriSearch/CCPRD")

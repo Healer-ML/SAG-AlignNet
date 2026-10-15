@@ -1,5 +1,5 @@
 base_config: base.yaml
-dataset_name: crop
+dataset_name: CroDis4CMR
 root_dir: data/AgriSearch/CroDis4CMR
 mask_pro: 0.25
 soft_weight: 0.1
