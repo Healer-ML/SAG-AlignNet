@@ -84,7 +84,7 @@ python evaluate.py \
   --eval_output outputs/CCPRD_val.json
 ```
 
-The output includes I2T and T2I R@1, R@5, R@10, mAP, and mINP, plus bidirectional mR. Use `--split test` for test-set evaluation.
+The output includes I2T and T2I R@1, R@5, R@10, plus bidirectional mR. Use `--split test` for test-set evaluation.
 
 ## Checkpoints and code
 
