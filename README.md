@@ -1,11 +1,6 @@
 <div align="center">
 
 # SAG-AlignNet
-
-### Image–Text Retrieval for Agricultural Datasets
-
-Semantic-aligned grounding · Cross-modal prototype distillation · Collaborative retrieval
-
 <img src="asset/model.png" alt="SAG-AlignNet architecture" width="920">
 
 *SAG-AlignNet model overview.*
