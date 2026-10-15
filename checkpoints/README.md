@@ -1,6 +1,5 @@
 # SAG-AlignNet inference checkpoints
 
-Five model-only checkpoints are stored with Git LFS. They can be used for inference and evaluation, but not to resume training.
 
 | File | Dataset | Config |
 | --- | --- | --- |
