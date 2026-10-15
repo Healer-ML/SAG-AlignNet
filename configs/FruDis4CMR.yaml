@@ -1,7 +1,6 @@
 base_config: base.yaml
 dataset_name: FruDis4CMR
 root_dir: data/AgriSearch/FruDis4CMR
-cprod_loss_weight: 0.55
 rho: 0.55
 K: 2
 n: 1.0

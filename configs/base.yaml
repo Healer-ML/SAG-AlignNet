@@ -17,10 +17,8 @@ masked_token_unchanged_rate: 0.1
 lr_factor: 5.0
 MLM: true
 
-loss_names: itc+sdm+id+adv+mlm
+loss_names: itc+sdm+matching_label+adv+mlm
 mlm_loss_weight: 1.0
-id_loss_weight: 1.0
-cprod_loss_weight: 1.0
 alpha: 0.1
 rho: 0.25
 mask_strategy: random

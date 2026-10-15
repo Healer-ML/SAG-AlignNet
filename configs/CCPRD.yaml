@@ -1,7 +1,6 @@
 base_config: base.yaml
 dataset_name: CCPRD
 root_dir: data/AgriSearch/CCPRD
-cprod_loss_weight: 0.7
 rho: 0.2
 K: 6
 n: 0.75

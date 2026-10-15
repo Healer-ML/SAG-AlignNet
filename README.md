@@ -31,8 +31,8 @@ Dataset statistics are taken from Table 11 of reference [1].
 
 `tools/run_sensitivity.py` sweeps the six parameters in Figs. 8–9 using the
 same symbols: `alpha` (α), `rho` (ρ), `K`, `n`, `m`, and `lambda_` (λ). It also
-includes implementation controls such as `cprod_loss_weight`, `memory_size`,
-`neighbor_weight`, and `temperature`. Each run changes one parameter, selects
+includes implementation controls such as `memory_size`, `neighbor_weight`, and
+`temperature`. Each run changes one parameter, selects
 a checkpoint with validation mR, and saves results as JSON and CSV. See
 [`ABLATION_PARAMETERS.md`](ABLATION_PARAMETERS.md) for definitions, exact sweep
 values, and commands.

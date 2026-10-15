@@ -29,7 +29,6 @@ FLOAT_PARAMETERS = {
     "n": [0.25, 0.50, 0.75, 1.0],
     "neighbor_weight": [0.0, 0.00025, 0.0005, 0.001, 0.002],
     "lambda_": [0.0, 0.25, 0.50, 0.75],
-    "cprod_loss_weight": [0.0, 0.25, 0.5, 0.75, 1.0],
     "temperature": [0.005, 0.01, 0.02, 0.05],
 }
 INTEGER_PARAMETERS = {
@@ -39,7 +38,6 @@ INTEGER_PARAMETERS = {
 }
 PARAMETERS = {**FLOAT_PARAMETERS, **INTEGER_PARAMETERS}
 PARAMETER_ALIASES = {
-    "cprod_alpha": "cprod_loss_weight",
     "mask_pro": "rho",
     "soft_weight": "alpha",
     "num_prototypes": "K",
@@ -84,7 +82,6 @@ def normalize_config_keys(config):
         if "alpha" in config:
             config.setdefault("adam_beta1", config.pop("alpha"))
     aliases = {
-        "cprod_alpha": "cprod_loss_weight",
         "mask_pro": "rho",
         "soft_weight": "alpha",
         "num_prototypes": "K",
@@ -96,6 +93,11 @@ def normalize_config_keys(config):
     for old_name, new_name in aliases.items():
         if old_name in config:
             config.setdefault(new_name, config.pop(old_name))
+    if "loss_names" in config:
+        config["loss_names"] = "+".join(
+            "matching_label" if name.strip() == "id" else name.strip()
+            for name in str(config["loss_names"]).split("+")
+        )
     return config
 
 
@@ -188,7 +190,7 @@ def parse_values(parameter, raw_values):
 
 def validate_values(parameter, values):
     for value in values:
-        if parameter in {"cprod_loss_weight", "lambda_"} and not 0.0 <= value <= 1.0:
+        if parameter == "lambda_" and not 0.0 <= value <= 1.0:
             raise ValueError("{} values must be in [0, 1]".format(parameter))
         if parameter == "alpha" and not 0.0 <= value <= 1.0:
             raise ValueError("alpha values must be in [0, 1]")
@@ -206,18 +208,13 @@ def validate_values(parameter, values):
 
 def validate_active(parameter, config):
     losses = set(str(config.get("loss_names", "")).split("+"))
-    id_weight = float(config.get("id_loss_weight", 1.0))
     soft_mix = float(config.get("lambda_", 0.5))
-    if parameter == "cprod_loss_weight" and "sdm" not in losses:
-        raise ValueError("cprod_loss_weight only affects runs with sdm in loss_names")
-    if parameter == "cprod_loss_weight" and id_weight == 0.0:
-        raise ValueError("cprod_loss_weight is multiplied by id_loss_weight, which is zero")
     if parameter in {
         "K", "n", "memory_size", "m",
         "neighbor_weight", "lambda_", "alpha",
-    } and not {"sdm", "id"}.issubset(losses):
+    } and not {"sdm", "matching_label"}.issubset(losses):
         raise ValueError(
-            "{} requires both sdm and id in loss_names".format(parameter)
+            "{} requires both sdm and matching_label in loss_names".format(parameter)
         )
     if parameter == "rho" and (not config.get("MLM", True) or "mlm" not in losses):
         raise ValueError("rho only affects the active MLM training path")
@@ -228,11 +225,6 @@ def validate_active(parameter, config):
         "lambda_", "alpha",
     } and int(config.get("num_epoch", 30)) < 2:
         raise ValueError("{} affects neighbor targets from epoch 2 onward".format(parameter))
-    if parameter in {
-        "n", "memory_size", "m", "neighbor_weight",
-        "lambda_", "alpha",
-    } and id_weight == 0.0:
-        raise ValueError("{} is inactive because id_loss_weight is zero".format(parameter))
     if parameter in {
         "n", "memory_size", "m", "neighbor_weight", "alpha",
     } and soft_mix == 0.0:

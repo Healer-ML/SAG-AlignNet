@@ -1,7 +1,6 @@
 base_config: base.yaml
 dataset_name: FRS-CMR
 root_dir: data/AgriSearch/FRS-CMR
-cprod_loss_weight: 0.55
 rho: 0.4
 K: 2
 n: 0.5

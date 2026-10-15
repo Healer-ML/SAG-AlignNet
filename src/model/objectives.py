@@ -121,9 +121,9 @@ def compute_itc(image_features, text_features, logit_scale):
     return loss
 
 
-def compute_id(image_logits, text_logits, labels):
+def compute_matching_label(image_logits, text_logits, labels):
     """
-    Instance loss proposed at http://arxiv.org/abs/1711.05535
+    Hard cross-entropy loss for matching image and text labels.
     """
     criterion = nn.CrossEntropyLoss(reduction="mean")
 
@@ -141,9 +141,9 @@ def SoftCrossEntropy(inputs, target, reduction='average'):
     return loss
 
 
-def compute_soft_id(image_logits, text_logits, label_i, lable_t):
+def compute_soft_matching_label(image_logits, text_logits, label_i, label_t):
 
-    loss = SoftCrossEntropy(image_logits,label_i)+ SoftCrossEntropy(text_logits,lable_t)
+    loss = SoftCrossEntropy(image_logits, label_i) + SoftCrossEntropy(text_logits, label_t)
     return loss/2
 
 

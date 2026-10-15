@@ -1,7 +1,6 @@
 base_config: base.yaml
 dataset_name: CroDis4CMR
 root_dir: data/AgriSearch/CroDis4CMR
-cprod_loss_weight: 0.4
 rho: 0.25
 K: 6
 n: 0.5

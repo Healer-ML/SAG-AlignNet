@@ -21,8 +21,6 @@ class SAGAlignNet(nn.Module):
             raise ValueError("m must be positive")
         if args.neighbor_weight < 0.0:
             raise ValueError("neighbor_weight must be non-negative")
-        if not 0.0 <= args.cprod_loss_weight <= 1.0:
-            raise ValueError("cprod_loss_weight must be in [0, 1]")
         if not 0.0 <= args.lambda_ <= 1.0:
             raise ValueError("lambda must be in [0, 1]")
         self._set_task()
@@ -46,7 +44,7 @@ class SAGAlignNet(nn.Module):
             nn.Linear(512, 1)
             )
 
-        if 'id' in args.loss_names:
+        if "matching_label" in self.current_task:
             '''
             self.classifier = nn.Sequential(
                 OrderedDict([('dense', nn.Linear(self.embed_dim, self.embed_dim)),
@@ -353,7 +351,7 @@ class SAGAlignNet(nn.Module):
         )
         return self._prototype_list(prototypes), reconstruction_loss
 
-    def forward(self, batch,epoch,store1,store2,idstore):
+    def forward(self, batch, epoch, store1, store2, label_store):
         ret = dict()
         images = batch['images']
         caption_ids = batch['caption_ids'] ###############原始##############
@@ -401,8 +399,7 @@ class SAGAlignNet(nn.Module):
                 output_i_c, output_t_c, batch['pids'], logit_scale
             )
             ret.update({
-                'xld_loss': local_prototype_loss * self.args.cprod_loss_weight
-                * self.args.id_loss_weight
+                'xld_loss': local_prototype_loss
             })
             total_6 = 0
             for i in range(self.num_prototypes):
@@ -416,7 +413,7 @@ class SAGAlignNet(nn.Module):
                 image_feats, text_feats, i_feats, t_feats, batch['pids']
             )
             ret.update({'rasa_pitm_loss': pitm_loss, 'rasa_prd_loss': prd_loss})
-        if 'id' in self.current_task:
+        if 'matching_label' in self.current_task:
             numm = i_feats.size(0)
             zero_tensor_i = torch.zeros(numm, self.num_classes).to(i_feats.device)
             zero_tensor_t = torch.zeros(numm, self.num_classes).to(i_feats.device)
@@ -428,12 +425,16 @@ class SAGAlignNet(nn.Module):
             text_logits = self.classifier(t_feats.half()).float()
 
             if epoch == 1:
-                ret.update({'id_loss':objectives.compute_id(image_logits, text_logits, batch['pids'])*self.args.id_loss_weight})
+                ret.update({
+                    'matching_label_loss': objectives.compute_matching_label(
+                        image_logits, text_logits, batch['pids']
+                    )
+                })
 
             else:
                 store_i = torch.cat(store1,dim=0)   ########(68000,6,512)
                 store_t = torch.cat(store2,dim=0)
-                store_id = torch.cat(idstore,dim=0)
+                stored_labels = torch.cat(label_store, dim=0)
                 for i in range(self.num_prototypes):
                     sim1 = F.normalize(output_i[i], p=2, dim=1) @ F.normalize(store_i[:,i,:], p=2, dim=1).t()  ######(64,68000)
                     sim2 = F.normalize(output_t[i], p=2, dim=1) @ F.normalize(store_t[:,i,:], p=2, dim=1).t()
@@ -442,21 +443,26 @@ class SAGAlignNet(nn.Module):
                     topk_values_i, topk_indice_i = torch.topk(sim1, k=effective_m, dim=1)
                     topk_values_t, topk_indice_t = torch.topk(sim2, k=effective_m, dim=1)
 
-                    shot_i = torch.gather(store_id.unsqueeze(0).repeat(numm, 1), dim=1, index=topk_indice_i) ######(64,75)
-                    shot_t = torch.gather(store_id.unsqueeze(0).repeat(numm, 1), dim=1, index=topk_indice_t)
+                    shot_i = torch.gather(stored_labels.unsqueeze(0).repeat(numm, 1), dim=1, index=topk_indice_i)
+                    shot_t = torch.gather(stored_labels.unsqueeze(0).repeat(numm, 1), dim=1, index=topk_indice_t)
 
                     increment_tensor = (
                         torch.ones_like(zero_tensor_i) * self.args.neighbor_weight
                     ).to(i_feats.device)
-                    soft_lable_i = zero_tensor_i + torch.scatter_add(torch.zeros_like(zero_tensor_i).to(i_feats.device), dim=1, index=shot_i, src=increment_tensor)
-                    #soft_lable_i = zero_tensor_i + torch.scatter_add(torch.zeros_like(zero_tensor_i).to(i_feats.device), dim=1, index=shot_i, src=increment_tensor) + torch.scatter_add(torch.zeros_like(zero_tensor_i).to(i_feats.device),dim=1,index=shot_t, src=increment_tensor)
-                    #soft_lable_t = soft_lable_i
-                    soft_lable_t = zero_tensor_t + torch.scatter_add(torch.zeros_like(zero_tensor_t).to(i_feats.device), dim=1, index=shot_t, src=increment_tensor)
+                    soft_label_i = zero_tensor_i + torch.scatter_add(torch.zeros_like(zero_tensor_i).to(i_feats.device), dim=1, index=shot_i, src=increment_tensor)
+                    soft_label_t = zero_tensor_t + torch.scatter_add(torch.zeros_like(zero_tensor_t).to(i_feats.device), dim=1, index=shot_t, src=increment_tensor)
 
                 lambda_value = self.args.lambda_
-                hard = objectives.compute_id(image_logits, text_logits, batch['pids'])
-                soft = objectives.compute_soft_id(image_logits, text_logits, soft_lable_i, soft_lable_t)
-                ret.update({'id_loss': ((1.0 - lambda_value) * hard + lambda_value * soft) * self.args.id_loss_weight})
+                hard = objectives.compute_matching_label(
+                    image_logits, text_logits, batch['pids']
+                )
+                soft = objectives.compute_soft_matching_label(
+                    image_logits, text_logits, soft_label_i, soft_label_t
+                )
+                ret.update({
+                    'matching_label_loss':
+                        (1.0 - lambda_value) * hard + lambda_value * soft
+                })
 
 
             image_pred = torch.argmax(image_logits, dim=1)

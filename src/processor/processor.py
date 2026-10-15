@@ -41,7 +41,7 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
         #"sdmcross_loss": AverageMeter(),
         "itm_loss": AverageMeter(),
         "itc_loss": AverageMeter(),
-        "id_loss": AverageMeter(),
+        "matching_label_loss": AverageMeter(),
         "mlm_loss": AverageMeter(),
         "mlm2_loss": AverageMeter(),
         "mlmpre_loss": AverageMeter(),
@@ -59,7 +59,7 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
     best_top1 = 0.0
     store1 = []################
     store2 = []################
-    idstore = []###############
+    label_store = []
     # train
     for epoch in range(start_epoch, num_epoch + 1):
         start_time = time.time()
@@ -73,15 +73,16 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
         model.train()
         store1_tem = []################
         store2_tem = []################
-        idstore_tem = []###############
+        label_store_tem = []
         for n_iter, batch in enumerate(train_loader):
             batch = {k: v.to(device) for k, v in batch.items()}
-            #ret = model(batch,epoch,store1,store2,idstore)
-            ret,ifeats,tfeats = model(batch,epoch,store1,store2,idstore)#########################################
+            ret, ifeats, tfeats = model(
+                batch, epoch, store1, store2, label_store
+            )
             # A memory bank is a target cache, so it must not retain old autograd graphs.
             store1_tem.append(ifeats.detach())################
             store2_tem.append(tfeats.detach())################
-            idstore_tem.append(batch['pids'].detach())###############
+            label_store_tem.append(batch['pids'].detach())
 
             total_loss = sum([v for k, v in ret.items() if "loss" in k])
 
@@ -98,7 +99,9 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
             meters['itm_loss'].update(ret.get('itm_loss', 0), batch_size)
             #meters['sdmcross_loss'].update(ret.get('sdmcross_loss', 0), batch_size)
             meters['itc_loss'].update(ret.get('itc_loss', 0), batch_size)
-            meters['id_loss'].update(ret.get('id_loss', 0), batch_size)
+            meters['matching_label_loss'].update(
+                ret.get('matching_label_loss', 0), batch_size
+            )
             meters['mlm_loss'].update(ret.get('mlm_loss', 0), batch_size)
             meters['mlm2_loss'].update(ret.get('mlm2_loss', 0), batch_size)
             meters['mlmpre_loss'].update(ret.get('mlmpre_loss', 0), batch_size)
@@ -129,7 +132,7 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
 
         memory_i = torch.cat(store1_tem, dim=0)
         memory_t = torch.cat(store2_tem, dim=0)
-        memory_id = torch.cat(idstore_tem, dim=0)
+        memory_labels = torch.cat(label_store_tem, dim=0)
         memory_limit = max(1, int(round(memory_i.size(0) * args.n)))
         if args.memory_size > 0:
             memory_limit = min(memory_limit, args.memory_size)
@@ -138,10 +141,10 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
             indices = torch.randperm(memory_i.size(0), device=memory_i.device)[:memory_limit]
             memory_i = memory_i[indices]
             memory_t = memory_t[indices]
-            memory_id = memory_id[indices]
+            memory_labels = memory_labels[indices]
         store1 = [memory_i]################
         store2 = [memory_t]################
-        idstore = [memory_id]###############
+        label_store = [memory_labels]
         effective_m = min(args.m, memory_i.size(0))
         logger.info(
             "Memory bank updated: %d samples (n=%.4f, cap=%d); "

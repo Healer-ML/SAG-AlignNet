@@ -36,12 +36,8 @@ def _parser():
     parser.add_argument("--MLM", dest="MLM", default=True, action="store_true")
     parser.add_argument("--disable-mlm", dest="MLM", action="store_false")
 
-    parser.add_argument("--loss_names", default="itc+sdm+id+mlm+adv")
+    parser.add_argument("--loss_names", default="itc+sdm+matching_label+mlm+adv")
     parser.add_argument("--mlm_loss_weight", type=float, default=1.0)
-    parser.add_argument("--id_loss_weight", type=float, default=1.0)
-    parser.add_argument("--cprod-loss-weight", "--cprod_loss_weight", "--cprod_alpha",
-                        dest="cprod_loss_weight", type=float, default=1.0,
-                        help="weight of the local prototype-alignment loss")
     parser.add_argument("--rho", "--mask_pro", dest="rho", type=float, default=0.25,
                         help="token masking ratio (Fig. 8)")
     parser.add_argument(
@@ -49,7 +45,7 @@ def _parser():
         choices=("random", "noun", "noun_adj", "agriculture_random"),
     )
     parser.add_argument("--alpha", "--soft_weight", dest="alpha", type=float, default=0.1,
-                        help="identity weight in the neighbor-guided soft target (Fig. 8)")
+                        help="weight of the current matching label in soft targets (Fig. 8)")
     parser.add_argument("--K", "--num_prototypes", dest="K", type=int, default=6,
                         help="number of learnable prototypes (Fig. 9)")
     parser.add_argument("--memory_size", type=int, default=-1)
@@ -58,10 +54,10 @@ def _parser():
     parser.add_argument("--m", "--neighbor_k", dest="m", type=int, default=100,
                         help="number of nearest memory samples used for neighbor targets (Fig. 9)")
     parser.add_argument("--neighbor_weight", type=float, default=0.001,
-                        help="weight added to each retrieved neighbor identity")
+                        help="weight added for each retrieved neighbor label")
     parser.add_argument("--lambda", "--lambda_", "--soft_label_alpha", dest="lambda_",
                         type=float, default=0.5,
-                        help="hard/soft identity-loss mixing coefficient (Fig. 9)")
+                        help="hard/soft matching-label loss mixing coefficient (Fig. 9)")
 
     parser.add_argument("--img_size", nargs=2, type=int, default=(384, 128))
     parser.add_argument("--stride_size", type=int, default=16)
@@ -133,7 +129,6 @@ def _normalize_config_keys(config):
             config.pop("alpha")
 
     aliases = {
-        "cprod_alpha": "cprod_loss_weight",
         "mask_pro": "rho",
         "soft_weight": "alpha",
         "num_prototypes": "K",
@@ -146,7 +141,15 @@ def _normalize_config_keys(config):
         if old_name in config:
             config.setdefault(new_name, config[old_name])
             config.pop(old_name)
+    if "loss_names" in config:
+        config["loss_names"] = _normalize_loss_names(config["loss_names"])
     return config
+
+
+def _normalize_loss_names(value):
+    """Use descriptive task names while accepting the former `id` token."""
+    names = [name.strip() for name in str(value).split("+") if name.strip()]
+    return "+".join("matching_label" if name == "id" else name for name in names)
 
 
 def get_args(argv=None):
@@ -162,6 +165,7 @@ def get_args(argv=None):
         raise ValueError("Unknown config key(s): {}".format(", ".join(unknown)))
     parser.set_defaults(**config)
     args = parser.parse_args(argv)
+    args.loss_names = _normalize_loss_names(args.loss_names)
     args.img_size = tuple(args.img_size)
     args.milestones = tuple(args.milestones)
     if args.split:
@@ -176,8 +180,6 @@ def get_args(argv=None):
         raise ValueError("n must be in (0, 1]")
     if not 0.0 <= args.lambda_ <= 1.0:
         raise ValueError("lambda must be in [0, 1]")
-    if not 0.0 <= args.cprod_loss_weight <= 1.0:
-        raise ValueError("cprod_loss_weight must be in [0, 1]")
     if args.neighbor_weight < 0.0:
         raise ValueError("neighbor_weight must be non-negative")
     if args.temperature <= 0.0:
