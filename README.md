@@ -122,6 +122,7 @@ The core code is grouped under `src/`; configs and data-preparation tools are ea
 
 ## § Citation
 
+
 ```bibtex
 @unpublished{yu_agrisearch,
   author = {Yu, Kejian and Ma, Wentao and Zhou, Tongqing and Wang, Mengyu and Tu, Wenxuan and Wang, Siwei and Cai, Zhiping and Liu, Xinwang},
