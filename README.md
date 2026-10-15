@@ -1,15 +1,13 @@
 <div align="center">
 
-<img src="asset/academic-header.svg" alt="Agricultural field and semantic network illustration" width="100%">
-
-# SAG-AlignNet
+<h1><img src="asset/agri-mark.svg" alt="" width="42"> SAG-AlignNet</h1>
 
 ![Python](https://img.shields.io/badge/Python-3.8-3776AB?logo=python&logoColor=white)
 ![PyTorch](https://img.shields.io/badge/PyTorch-2.1.1%2Bcu121-EE4C2C?logo=pytorch&logoColor=white)
 ![Task](https://img.shields.io/badge/Task-Image--Text%20Retrieval-496A81)
 ![Datasets](https://img.shields.io/badge/AgriSearch-5%20datasets-658C6A)
 
-<img src="asset/model.png" alt="SAG-AlignNet architecture" width="920">
+<img src="asset/model.png" alt="SAG-AlignNet architecture" width="880">
 
 <sub><b>Figure 1.</b> SAG-AlignNet architecture.</sub>
 
@@ -97,11 +95,12 @@ The core code is grouped under `src/`; configs and data-preparation tools are ea
 
 ## § Citation
 
-[1] Kejian Yu, Wentao Ma, Tongqing Zhou, Mengyu Wang, Wenxuan Tu, Siwei Wang, Zhiping Cai, and Xinwang Liu. “AgriSearch: Using Agricultural Ubiquitous Perception for Image-Text Cross-Modal Retrieval via LLMs.”
+[1] Kejian Yu, Wentao Ma, Tongqing Zhou, Mengyu Wang, Wenxuan Tu, Siwei Wang, Zhiping Cai, and Xinwang Liu. “AgriSearch: Using Agricultural Ubiquitous Perception for Image-Text Cross-Modal Retrieval via LLMs.” Unpublished manuscript.
 
 ```bibtex
-@misc{yu_agrisearch,
+@unpublished{yu_agrisearch,
+  author = {Yu, Kejian and Ma, Wentao and Zhou, Tongqing and Wang, Mengyu and Tu, Wenxuan and Wang, Siwei and Cai, Zhiping and Liu, Xinwang},
   title  = {AgriSearch: Using Agricultural Ubiquitous Perception for Image-Text Cross-Modal Retrieval via LLMs},
-  author = {Yu, Kejian and Ma, Wentao and Zhou, Tongqing and Wang, Mengyu and Tu, Wenxuan and Wang, Siwei and Cai, Zhiping and Liu, Xinwang}
+  note   = {Unpublished manuscript}
 }
 ```
