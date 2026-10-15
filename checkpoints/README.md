@@ -10,4 +10,4 @@ Five model-only checkpoints are stored with Git LFS. They can be used for infere
 | `GjPest4CMR.pth` | GjPest4CMR | `configs/GjPest4CMR.yaml` |
 | `FruDis4CMR.pth` | FruDis4CMR | `configs/FruDis4CMR.yaml` |
 
-The historical runs selected checkpoints on the test split. For new results, select checkpoints on validation data and evaluate on the test split once.
+
