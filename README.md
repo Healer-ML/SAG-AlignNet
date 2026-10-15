@@ -6,11 +6,7 @@
 
 Semantic-aligned grounding · Cross-modal prototype distillation · Collaborative retrieval
 
-<br>
-
 <img src="asset/model.png" alt="SAG-AlignNet architecture" width="920">
-
-<br>
 
 *SAG-AlignNet model overview.*
 
@@ -20,13 +16,15 @@ Semantic-aligned grounding · Cross-modal prototype distillation · Collaborativ
 
 ## Datasets
 
-| Dataset | Config | Checkpoint |
-|:--|:--|:--|
-| FRS-CMR | `configs/FRS-CMR.yaml` | `checkpoints/FRS-CMR.pth` |
-| CroDis4CMR | `configs/CroDis4CMR.yaml` | `checkpoints/CroDis4CMR.pth` |
-| CCPRD | `configs/CCPRD.yaml` | `checkpoints/CCPRD.pth` |
-| GjPest4CMR | `configs/GjPest4CMR.yaml` | `checkpoints/GjPest4CMR.pth` |
-| FruDis4CMR | `configs/FruDis4CMR.yaml` | `checkpoints/FruDis4CMR.pth` |
+| Dataset | Classes | Images | Config | Checkpoint |
+|:--|--:|--:|:--|:--|
+| FRS-CMR | 13 | 22,602 | `configs/FRS-CMR.yaml` | `checkpoints/FRS-CMR.pth` |
+| CroDis4CMR | 13 | 9,460 | `configs/CroDis4CMR.yaml` | `checkpoints/CroDis4CMR.pth` |
+| CCPRD | 102 | 6,628 | `configs/CCPRD.yaml` | `checkpoints/CCPRD.pth` |
+| GjPest4CMR | 17 | 9,496 | `configs/GjPest4CMR.yaml` | `checkpoints/GjPest4CMR.pth` |
+| FruDis4CMR | 17 | 18,524 | `configs/FruDis4CMR.yaml` | `checkpoints/FruDis4CMR.pth` |
+
+Dataset statistics are taken from Table 11 of reference [1].
 
 Dataset images and annotations are not included. Prepare the data locally. The standard output layout is:
 
@@ -93,3 +91,7 @@ The output includes I2T and T2I R@1, R@5, R@10, mAP, and mINP, plus bidirectiona
 Checkpoints are model-only files tracked with Git LFS. The released weights are historical runs whose checkpoint selection used the test split; use validation-based selection for new experiments. See [`checkpoints/README.md`](checkpoints/README.md) for details.
 
 The core code is grouped under `src/`; configs and data-preparation tools are easy to find at the repository root.
+
+## Citation
+
+[1] Kejian Yu, Wentao Ma, Tongqing Zhou, Mengyu Wang, Wenxuan Tu, Siwei Wang, Zhiping Cai, and Xinwang Liu. “AgriSearch: Using Agricultural Ubiquitous Perception for Image-Text Cross-Modal Retrieval via LLMs.”
