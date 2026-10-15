@@ -1,15 +1,23 @@
 <div align="center">
 
+<img src="asset/academic-header.svg" alt="Agricultural field and semantic network illustration" width="100%">
+
 # SAG-AlignNet
+
+![Python](https://img.shields.io/badge/Python-3.8-3776AB?logo=python&logoColor=white)
+![PyTorch](https://img.shields.io/badge/PyTorch-2.1.1%2Bcu121-EE4C2C?logo=pytorch&logoColor=white)
+![Task](https://img.shields.io/badge/Task-Image--Text%20Retrieval-496A81)
+![Datasets](https://img.shields.io/badge/AgriSearch-5%20datasets-658C6A)
+
 <img src="asset/model.png" alt="SAG-AlignNet architecture" width="920">
 
-*SAG-AlignNet model overview.*
+<sub><b>Figure 1.</b> SAG-AlignNet architecture.</sub>
 
 </div>
 
 ---
 
-## Datasets
+## ▦ Datasets
 
 | Dataset | Classes | Images | Config | Checkpoint |
 |:--|--:|--:|:--|:--|
@@ -38,7 +46,7 @@ python tools/prepare_agrisearch.py \
 
 The script preserves existing splits. To create new deterministic 80/10/10 splits, add `--generate-splits --seed 1`.
 
-## Environment
+## ⚙ Environment
 
 Reference setup: Python 3.8, PyTorch 2.1.1, CUDA 12.1.
 
@@ -50,7 +58,7 @@ pip install -r requirements.txt
 
 The first run downloads the CLIP ViT-B/16 initialization weights. For offline use, set `pretrain_choice` in the config to a local weight file.
 
-## Train
+## ⇧ Train
 
 Each config uses 30 epochs and seed 1. For example, train on CCPRD with one GPU:
 
@@ -67,7 +75,7 @@ CUDA_VISIBLE_DEVICES=0,1 torchrun --standalone --nproc_per_node=2 \
 
 Replace `CCPRD.yaml` with another dataset config to change the dataset. The best validation checkpoint and training logs are written under `outputs/`.
 
-## Evaluate
+## ⌕ Evaluate
 
 Evaluate a checkpoint and save bidirectional retrieval metrics:
 
@@ -81,12 +89,19 @@ python evaluate.py \
 
 The output includes I2T and T2I R@1, R@5, R@10, plus bidirectional mR. Use `--split test` for test-set evaluation.
 
-## Checkpoints and code
+## ⇩ Checkpoints and code
 
 Checkpoints are model-only files tracked with Git LFS. The released weights are historical runs whose checkpoint selection used the test split; use validation-based selection for new experiments. See [`checkpoints/README.md`](checkpoints/README.md) for details.
 
 The core code is grouped under `src/`; configs and data-preparation tools are easy to find at the repository root.
 
-## Citation
+## § Citation
 
 [1] Kejian Yu, Wentao Ma, Tongqing Zhou, Mengyu Wang, Wenxuan Tu, Siwei Wang, Zhiping Cai, and Xinwang Liu. “AgriSearch: Using Agricultural Ubiquitous Perception for Image-Text Cross-Modal Retrieval via LLMs.”
+
+```bibtex
+@misc{yu_agrisearch,
+  title  = {AgriSearch: Using Agricultural Ubiquitous Perception for Image-Text Cross-Modal Retrieval via LLMs},
+  author = {Yu, Kejian and Ma, Wentao and Zhou, Tongqing and Wang, Mengyu and Tu, Wenxuan and Wang, Siwei and Cai, Zhiping and Liu, Xinwang}
+}
+```
