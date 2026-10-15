@@ -94,7 +94,7 @@ def build_dataloader(args, tranforms=None):
         if args.MLM:
             train_set = ImageTextMLMDataset(
                 dataset.train, train_transforms, text_length=args.text_length,
-                mask_pro=args.mask_pro, mask_strategy=args.mask_strategy,
+                rho=args.rho, mask_strategy=args.mask_strategy,
                 dataset_name=args.dataset_name)
         else:
             train_set = ImageTextDataset(dataset.train,

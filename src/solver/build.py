@@ -35,14 +35,14 @@ def build_optimizer(args, model):
         optimizer = torch.optim.Adam(
             params,
             lr=args.lr,
-            betas=(args.alpha, args.beta),
+            betas=(args.adam_beta1, args.adam_beta2),
             eps=1e-3,
         )
     elif args.optimizer == "AdamW":
         optimizer = torch.optim.AdamW(
             params,
             lr=args.lr,
-            betas=(args.alpha, args.beta),
+            betas=(args.adam_beta1, args.adam_beta2),
             eps=1e-8,
         )
     else:

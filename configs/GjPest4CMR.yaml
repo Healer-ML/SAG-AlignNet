@@ -1,10 +1,10 @@
 base_config: base.yaml
 dataset_name: GjPest4CMR
 root_dir: data/AgriSearch/GjPest4CMR
-cprod_alpha: 0.7
-mask_pro: 0.3
-num_prototypes: 6
-memory_ratio: 0.75
-neighbor_k: 100
-soft_label_alpha: 0.25
-soft_weight: 0.55
+cprod_loss_weight: 0.7
+rho: 0.3
+K: 6
+n: 0.75
+m: 100
+lambda_: 0.25
+alpha: 0.55

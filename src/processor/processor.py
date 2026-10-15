@@ -16,8 +16,8 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
     device = args.device
     if args.memory_size == 0 or args.memory_size < -1:
         raise ValueError("memory_size must be -1 or a positive integer")
-    if not 0.0 < args.memory_ratio <= 1.0:
-        raise ValueError("memory_ratio must be in (0, 1]")
+    if not 0.0 < args.n <= 1.0:
+        raise ValueError("n must be in (0, 1]")
     if args.distributed and device.startswith("cuda"):
         device = "cuda:{}".format(args.local_rank)
     num_epoch = args.num_epoch
@@ -130,7 +130,7 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
         memory_i = torch.cat(store1_tem, dim=0)
         memory_t = torch.cat(store2_tem, dim=0)
         memory_id = torch.cat(idstore_tem, dim=0)
-        memory_limit = max(1, int(round(memory_i.size(0) * args.memory_ratio)))
+        memory_limit = max(1, int(round(memory_i.size(0) * args.n)))
         if args.memory_size > 0:
             memory_limit = min(memory_limit, args.memory_size)
         if memory_limit < memory_i.size(0):
@@ -142,12 +142,12 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
         store1 = [memory_i]################
         store2 = [memory_t]################
         idstore = [memory_id]###############
-        effective_neighbor_k = min(args.neighbor_k, memory_i.size(0))
+        effective_m = min(args.m, memory_i.size(0))
         logger.info(
-            "Memory bank updated: %d samples (ratio=%.4f, cap=%d); "
-            "neighbor_k requested=%d effective=%d neighbor_weight=%.6g",
-            memory_i.size(0), args.memory_ratio, args.memory_size,
-            args.neighbor_k, effective_neighbor_k, args.neighbor_weight,
+            "Memory bank updated: %d samples (n=%.4f, cap=%d); "
+            "m requested=%d effective=%d neighbor_weight=%.6g",
+            memory_i.size(0), args.n, args.memory_size,
+            args.m, effective_m, args.neighbor_weight,
         )
         if tb_writer is not None:
             tb_writer.add_scalar('lr', scheduler.get_lr()[0], epoch)

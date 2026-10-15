@@ -180,7 +180,7 @@ class ImageTextMLMDataset(Dataset):
                  dataset,
                  transform=None,
                  text_length: int = 77,
-                 mask_pro=0.3,
+                 rho=0.3,
                  mask_strategy="random",
                  dataset_name="",
                  truncate: bool = True):
@@ -188,7 +188,7 @@ class ImageTextMLMDataset(Dataset):
         self.transform = transform
         self.text_length = text_length
         self.truncate = truncate
-        self.maks_pro=mask_pro
+        self.rho = rho
         if mask_strategy not in MASK_STRATEGIES:
             raise ValueError("Unknown mask strategy: {}".format(mask_strategy))
         self.mask_strategy = mask_strategy
@@ -251,10 +251,10 @@ class ImageTextMLMDataset(Dataset):
         caption_tokens_o = caption_tokens.clone()
         if self.mask_strategy == "random":
             mlm_tokens, mlm_labels = self._build_random_masked_tokens_and_labels(
-                caption_tokens.cpu().numpy(), self.maks_pro)
+                caption_tokens.cpu().numpy(), self.rho)
         else:
             mlm_tokens, mlm_labels = self._build_guided_masked_tokens_and_labels(
-                caption_tokens.cpu().numpy(), self.maks_pro,
+                caption_tokens.cpu().numpy(), self.rho,
                 self.guided_positions[index][self.mask_strategy])
         mlm_tokens_2, mlm_labels_2 = self._build_random_masked_tokens_and_labels_2(caption_tokens_o.cpu().numpy())
 
@@ -269,7 +269,7 @@ class ImageTextMLMDataset(Dataset):
 
         return ret
 
-    def _build_random_masked_tokens_and_labels(self, tokens,mask_pro):
+    def _build_random_masked_tokens_and_labels(self, tokens, rho):
         """
         Masking some random tokens for Language Model task with probabilities as in the original BERT paper.
         :param tokens: list of int, tokenized sentence.
@@ -283,8 +283,8 @@ class ImageTextMLMDataset(Dataset):
             if 0 < token < 49405 and token not in ll:
                 prob = random.random()
                 # mask token with 15% probability
-                if prob < mask_pro:
-                    prob /= mask_pro
+                if prob < rho:
+                    prob /= rho
 
                     # 80% randomly change token to mask token
                     if prob < 0.9999:
@@ -311,7 +311,7 @@ class ImageTextMLMDataset(Dataset):
 
         return torch.tensor(tokens), torch.tensor(labels)
 
-    def _build_guided_masked_tokens_and_labels(self, tokens, mask_pro, priority_positions):
+    def _build_guided_masked_tokens_and_labels(self, tokens, rho, priority_positions):
         """Change only token selection; retain Random's budget and replacement."""
         mask = self.tokenizer.encoder["<|mask|>"]
         token_range = list(range(1, len(self.tokenizer.encoder)-3))
@@ -323,7 +323,7 @@ class ImageTextMLMDataset(Dataset):
         labels = [0] * len(tokens)
         if not candidates:
             return torch.tensor(tokens), torch.tensor(labels)
-        budget = sum(random.random() < mask_pro for _ in candidates)
+        budget = sum(random.random() < rho for _ in candidates)
         budget = max(1, min(budget, len(candidates)))
         priority = [i for i in candidates if i in priority_positions]
         selected = random.sample(priority, min(budget, len(priority)))

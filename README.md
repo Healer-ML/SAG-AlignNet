@@ -29,26 +29,22 @@ Dataset statistics are taken from Table 11 of reference [1].
 
 ## Sensitivity analysis
 
-`tools/run_sensitivity.py` sweeps arguments that are read by the current
-training code: `cprod_alpha`, `mask_pro`, `num_prototypes`, `memory_ratio`,
-`memory_size`, `neighbor_k`, `neighbor_weight`, `soft_label_alpha`,
-`soft_weight`, and `temperature`. It uses each dataset YAML as the baseline,
-changes one argument per run, selects checkpoints with validation mR, and saves
-the full run configuration and results as JSON and CSV. See
-[`ABLATION_PARAMETERS.md`](ABLATION_PARAMETERS.md) for parameter behavior,
-default sweep values, checks, and commands.
+`tools/run_sensitivity.py` sweeps the six parameters in Figs. 8–9 using the
+same symbols: `alpha` (α), `rho` (ρ), `K`, `n`, `m`, and `lambda_` (λ). It also
+includes implementation controls such as `cprod_loss_weight`, `memory_size`,
+`neighbor_weight`, and `temperature`. Each run changes one parameter, selects
+a checkpoint with validation mR, and saves results as JSON and CSV. See
+[`ABLATION_PARAMETERS.md`](ABLATION_PARAMETERS.md) for definitions, exact sweep
+values, and commands.
 
-The memory bank uses both `memory_ratio` and the optional `memory_size` cap.
-The model limits the effective `neighbor_k` to the number of samples in that
-bank. The runner checks these effective values before starting a sweep.
-`neighbor_weight` is configurable with a default of `0.001`, preserving the
-previous constant in the neighbor-target code.
+Adam uses the separate keys `adam_beta1` and `adam_beta2`. The masking ratio
+`rho` and memory fraction `n` are distinct controls. The model caps effective
+`m` by the number of items in the memory bank. Legacy config and CLI names are
+accepted for existing runs. The legacy Adam `alpha`/`beta` pair is mapped when it appears in a YAML config.
 
-The options `alpha` and `beta` configure Adam's optimizer betas.
 `masked_token_rate` and `masked_token_unchanged_rate` are accepted legacy
 fields and currently do not affect the active training path; they are excluded
 from sensitivity sweeps.
-
 Dataset images and annotations are not included. Prepare the data locally. The standard output layout is:
 
 ```text
@@ -111,7 +107,7 @@ The output includes I2T and T2I R@1, R@5, R@10, plus bidirectional mR. Use `--sp
 
 The released checkpoints are historical runs created with the shared
 six-prototype architecture. For the FRS-CMR and FruDis4CMR checkpoints, whose
-new training configs use `K=2`, add `--num_prototypes 6` when evaluating those
+new training configs use `K=2`, add `--K 6` when evaluating those
 historical weights. New training runs should use the values in their dataset
 config.
 

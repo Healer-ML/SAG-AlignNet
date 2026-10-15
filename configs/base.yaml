@@ -20,14 +20,16 @@ MLM: true
 loss_names: itc+sdm+id+adv+mlm
 mlm_loss_weight: 1.0
 id_loss_weight: 1.0
-cprod_alpha: 1.0
+cprod_loss_weight: 1.0
+alpha: 0.1
+rho: 0.25
 mask_strategy: random
-num_prototypes: 6
+K: 6
 memory_size: -1
-memory_ratio: 1.0
-neighbor_k: 100
+n: 1.0
+m: 100
 neighbor_weight: 0.001
-soft_label_alpha: 0.5
+lambda_: 0.5
 
 img_size: [384, 128]
 stride_size: 16
@@ -40,8 +42,8 @@ bias_lr_factor: 2.0
 momentum: 0.9
 weight_decay: 0.000044
 weight_decay_bias: 0.0
-alpha: 0.9
-beta: 0.999
+adam_beta1: 0.9
+adam_beta2: 0.999
 
 num_epoch: 30
 grad_clip_max_norm: 5.0

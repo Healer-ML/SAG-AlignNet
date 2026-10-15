@@ -14,17 +14,17 @@ class SAGAlignNet(nn.Module):
         super().__init__()
         self.args = args
         self.num_classes = num_classes
-        self.num_prototypes = args.num_prototypes
+        self.num_prototypes = args.K
         if self.num_prototypes <= 0:
-            raise ValueError("num_prototypes must be positive")
-        if args.neighbor_k <= 0:
-            raise ValueError("neighbor_k must be positive")
+            raise ValueError("K must be positive")
+        if args.m <= 0:
+            raise ValueError("m must be positive")
         if args.neighbor_weight < 0.0:
             raise ValueError("neighbor_weight must be non-negative")
-        if not 0.0 <= args.cprod_alpha <= 1.0:
-            raise ValueError("cprod_alpha must be in [0, 1]")
-        if not 0.0 <= args.soft_label_alpha <= 1.0:
-            raise ValueError("soft_label_alpha must be in [0, 1]")
+        if not 0.0 <= args.cprod_loss_weight <= 1.0:
+            raise ValueError("cprod_loss_weight must be in [0, 1]")
+        if not 0.0 <= args.lambda_ <= 1.0:
+            raise ValueError("lambda must be in [0, 1]")
         self._set_task()
         self.cprod_variant, self.masalign_variant = parse_mechanism_variant(getattr(args, "mechanism_variant", "native"))
         if self.cprod_variant != "native" and "sdm" not in self.current_task:
@@ -401,7 +401,7 @@ class SAGAlignNet(nn.Module):
                 output_i_c, output_t_c, batch['pids'], logit_scale
             )
             ret.update({
-                'xld_loss': local_prototype_loss * self.args.cprod_alpha
+                'xld_loss': local_prototype_loss * self.args.cprod_loss_weight
                 * self.args.id_loss_weight
             })
             total_6 = 0
@@ -421,8 +421,8 @@ class SAGAlignNet(nn.Module):
             zero_tensor_i = torch.zeros(numm, self.num_classes).to(i_feats.device)
             zero_tensor_t = torch.zeros(numm, self.num_classes).to(i_feats.device)
             for i, index in enumerate(batch['pids']):
-                        zero_tensor_i[i, index] = self.args.soft_weight
-                        zero_tensor_t[i, index] = self.args.soft_weight
+                        zero_tensor_i[i, index] = self.args.alpha
+                        zero_tensor_t[i, index] = self.args.alpha
 
             image_logits = self.classifier(i_feats.half()).float()
             text_logits = self.classifier(t_feats.half()).float()
@@ -438,9 +438,9 @@ class SAGAlignNet(nn.Module):
                     sim1 = F.normalize(output_i[i], p=2, dim=1) @ F.normalize(store_i[:,i,:], p=2, dim=1).t()  ######(64,68000)
                     sim2 = F.normalize(output_t[i], p=2, dim=1) @ F.normalize(store_t[:,i,:], p=2, dim=1).t()
 
-                    neighbor_k = min(self.args.neighbor_k, store_i.size(0))
-                    topk_values_i, topk_indice_i = torch.topk(sim1, k=neighbor_k, dim=1)
-                    topk_values_t, topk_indice_t = torch.topk(sim2, k=neighbor_k, dim=1)
+                    effective_m = min(self.args.m, store_i.size(0))
+                    topk_values_i, topk_indice_i = torch.topk(sim1, k=effective_m, dim=1)
+                    topk_values_t, topk_indice_t = torch.topk(sim2, k=effective_m, dim=1)
 
                     shot_i = torch.gather(store_id.unsqueeze(0).repeat(numm, 1), dim=1, index=topk_indice_i) ######(64,75)
                     shot_t = torch.gather(store_id.unsqueeze(0).repeat(numm, 1), dim=1, index=topk_indice_t)
@@ -453,10 +453,10 @@ class SAGAlignNet(nn.Module):
                     #soft_lable_t = soft_lable_i
                     soft_lable_t = zero_tensor_t + torch.scatter_add(torch.zeros_like(zero_tensor_t).to(i_feats.device), dim=1, index=shot_t, src=increment_tensor)
 
-                alpha = self.args.soft_label_alpha
+                lambda_value = self.args.lambda_
                 hard = objectives.compute_id(image_logits, text_logits, batch['pids'])
                 soft = objectives.compute_soft_id(image_logits, text_logits, soft_lable_i, soft_lable_t)
-                ret.update({'id_loss': ((1.0 - alpha) * hard + alpha * soft) * self.args.id_loss_weight})
+                ret.update({'id_loss': ((1.0 - lambda_value) * hard + lambda_value * soft) * self.args.id_loss_weight})
 
 
             image_pred = torch.argmax(image_logits, dim=1)

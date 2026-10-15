@@ -24,25 +24,34 @@ ROOT = Path(__file__).resolve().parents[1]
 CONFIG_DIR = ROOT / "configs"
 
 FLOAT_PARAMETERS = {
-    "cprod_alpha": [0.0, 0.25, 0.5, 0.75, 1.0],
-    "mask_pro": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
-    "memory_ratio": [0.25, 0.5, 0.75, 1.0],
+    "alpha": [0.10, 0.25, 0.40, 0.55, 0.70, 0.85],
+    "rho": [0.20, 0.25, 0.30, 0.35, 0.40, 0.55],
+    "n": [0.25, 0.50, 0.75, 1.0],
     "neighbor_weight": [0.0, 0.00025, 0.0005, 0.001, 0.002],
-    "soft_label_alpha": [0.0, 0.25, 0.5, 0.75, 1.0],
-    "soft_weight": [0.0, 0.25, 0.5, 0.75, 1.0],
+    "lambda_": [0.0, 0.25, 0.50, 0.75],
+    "cprod_loss_weight": [0.0, 0.25, 0.5, 0.75, 1.0],
     "temperature": [0.005, 0.01, 0.02, 0.05],
 }
 INTEGER_PARAMETERS = {
-    "num_prototypes": [2, 4, 6, 8],
-    "neighbor_k": [25, 50, 100, 200],
+    "K": [2, 4, 6, 8],
+    "m": [25, 50, 100, 200],
     "memory_size": None,  # Default values are derived from the configured bank capacity.
 }
 PARAMETERS = {**FLOAT_PARAMETERS, **INTEGER_PARAMETERS}
+PARAMETER_ALIASES = {
+    "cprod_alpha": "cprod_loss_weight",
+    "mask_pro": "rho",
+    "soft_weight": "alpha",
+    "num_prototypes": "K",
+    "memory_ratio": "n",
+    "neighbor_k": "m",
+    "soft_label_alpha": "lambda_",
+}
 
 CSV_FIELDS = [
     "dataset", "parameter", "requested_value", "effective_value", "seed",
     "validation_mR", "best_epoch", "memory_samples_per_rank",
-    "effective_neighbor_k", "return_code", "run_dir", "train_log",
+    "effective_m", "return_code", "run_dir", "train_log",
 ]
 AGGREGATE_FIELDS = [
     "dataset", "parameter", "requested_value", "effective_value",
@@ -58,11 +67,35 @@ def load_config(path):
     config = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     if not isinstance(config, dict):
         raise ValueError("Config must contain a YAML mapping: {}".format(path))
+    config = normalize_config_keys(config)
     base = config.pop("base_config", None)
     if base:
         merged = load_config(path.parent / base)
         merged.update(config)
         return merged
+    return config
+
+
+def normalize_config_keys(config):
+    """Translate legacy config names to the parameter symbols in the figures."""
+    config = dict(config)
+    if "beta" in config:
+        config.setdefault("adam_beta2", config.pop("beta"))
+        if "alpha" in config:
+            config.setdefault("adam_beta1", config.pop("alpha"))
+    aliases = {
+        "cprod_alpha": "cprod_loss_weight",
+        "mask_pro": "rho",
+        "soft_weight": "alpha",
+        "num_prototypes": "K",
+        "memory_ratio": "n",
+        "neighbor_k": "m",
+        "soft_label_alpha": "lambda_",
+        "lambda": "lambda_",
+    }
+    for old_name, new_name in aliases.items():
+        if old_name in config:
+            config.setdefault(new_name, config.pop(old_name))
     return config
 
 
@@ -100,9 +133,9 @@ def memory_capacity(config, pair_count, nproc_per_node, parameter=None, value=No
     per_rank = samples_per_rank(pair_count, nproc_per_node)
     if per_rank is None:
         return None
-    ratio = float(config.get("memory_ratio", 1.0))
+    ratio = float(config.get("n", 1.0))
     cap = int(config.get("memory_size", -1))
-    if parameter == "memory_ratio":
+    if parameter == "n":
         ratio = float(value)
     elif parameter == "memory_size":
         cap = int(value)
@@ -155,17 +188,17 @@ def parse_values(parameter, raw_values):
 
 def validate_values(parameter, values):
     for value in values:
-        if parameter in {"cprod_alpha", "soft_label_alpha"} and not 0.0 <= value <= 1.0:
+        if parameter in {"cprod_loss_weight", "lambda_"} and not 0.0 <= value <= 1.0:
             raise ValueError("{} values must be in [0, 1]".format(parameter))
-        if parameter == "mask_pro" and not 0.0 < value <= 1.0:
-            raise ValueError("mask_pro values must be in (0, 1]")
-        if parameter == "memory_ratio" and not 0.0 < value <= 1.0:
-            raise ValueError("memory_ratio values must be in (0, 1]")
-        if parameter in {"num_prototypes", "neighbor_k"} and value <= 0:
+        if parameter == "alpha" and not 0.0 <= value <= 1.0:
+            raise ValueError("alpha values must be in [0, 1]")
+        if parameter in {"rho", "n"} and not 0.0 < value <= 1.0:
+            raise ValueError("{} values must be in (0, 1]".format(parameter))
+        if parameter in {"K", "m"} and value <= 0:
             raise ValueError("{} values must be positive".format(parameter))
         if parameter == "memory_size" and (value == 0 or value < -1):
             raise ValueError("memory_size values must be -1 or positive")
-        if parameter in {"neighbor_weight", "soft_weight"} and value < 0.0:
+        if parameter == "neighbor_weight" and value < 0.0:
             raise ValueError("{} values must be non-negative".format(parameter))
         if parameter == "temperature" and value <= 0.0:
             raise ValueError("temperature values must be positive")
@@ -174,38 +207,38 @@ def validate_values(parameter, values):
 def validate_active(parameter, config):
     losses = set(str(config.get("loss_names", "")).split("+"))
     id_weight = float(config.get("id_loss_weight", 1.0))
-    soft_mix = float(config.get("soft_label_alpha", 0.5))
-    if parameter == "cprod_alpha" and "sdm" not in losses:
-        raise ValueError("cprod_alpha only affects runs with sdm in loss_names")
-    if parameter == "cprod_alpha" and id_weight == 0.0:
-        raise ValueError("cprod_alpha is multiplied by id_loss_weight, which is zero")
+    soft_mix = float(config.get("lambda_", 0.5))
+    if parameter == "cprod_loss_weight" and "sdm" not in losses:
+        raise ValueError("cprod_loss_weight only affects runs with sdm in loss_names")
+    if parameter == "cprod_loss_weight" and id_weight == 0.0:
+        raise ValueError("cprod_loss_weight is multiplied by id_loss_weight, which is zero")
     if parameter in {
-        "num_prototypes", "memory_ratio", "memory_size", "neighbor_k",
-        "neighbor_weight", "soft_label_alpha", "soft_weight",
+        "K", "n", "memory_size", "m",
+        "neighbor_weight", "lambda_", "alpha",
     } and not {"sdm", "id"}.issubset(losses):
         raise ValueError(
             "{} requires both sdm and id in loss_names".format(parameter)
         )
-    if parameter == "mask_pro" and (not config.get("MLM", True) or "mlm" not in losses):
-        raise ValueError("mask_pro only affects the active MLM training path")
+    if parameter == "rho" and (not config.get("MLM", True) or "mlm" not in losses):
+        raise ValueError("rho only affects the active MLM training path")
     if parameter == "temperature" and not ({"sdm", "itc"} & losses):
         raise ValueError("temperature requires sdm or itc in loss_names")
     if parameter in {
-        "memory_ratio", "memory_size", "neighbor_k", "neighbor_weight",
-        "soft_label_alpha", "soft_weight",
+        "n", "memory_size", "m", "neighbor_weight",
+        "lambda_", "alpha",
     } and int(config.get("num_epoch", 30)) < 2:
         raise ValueError("{} affects neighbor targets from epoch 2 onward".format(parameter))
     if parameter in {
-        "memory_ratio", "memory_size", "neighbor_k", "neighbor_weight",
-        "soft_label_alpha", "soft_weight",
+        "n", "memory_size", "m", "neighbor_weight",
+        "lambda_", "alpha",
     } and id_weight == 0.0:
         raise ValueError("{} is inactive because id_loss_weight is zero".format(parameter))
     if parameter in {
-        "memory_ratio", "memory_size", "neighbor_k", "neighbor_weight", "soft_weight",
+        "n", "memory_size", "m", "neighbor_weight", "alpha",
     } and soft_mix == 0.0:
-        raise ValueError("{} is inactive because soft_label_alpha is zero".format(parameter))
-    if parameter == "mask_pro" and float(config.get("mlm_loss_weight", 1.0)) == 0.0:
-        raise ValueError("mask_pro is inactive because mlm_loss_weight is zero")
+        raise ValueError("{} is inactive because lambda_ is zero".format(parameter))
+    if parameter == "rho" and float(config.get("mlm_loss_weight", 1.0)) == 0.0:
+        raise ValueError("rho is inactive because mlm_loss_weight is zero")
 
 
 def format_value(value):
@@ -309,7 +342,7 @@ def make_parser(datasets):
     parser.add_argument("--dataset", required=True, choices=datasets)
     parser.add_argument(
         "--parameter", required=True,
-        choices=sorted(PARAMETERS) + ["all"],
+        choices=sorted(PARAMETERS) + sorted(PARAMETER_ALIASES) + ["all"],
         help="one active training argument, or all registered arguments",
     )
     parser.add_argument(
@@ -327,6 +360,7 @@ def main(argv=None):
     dataset_names = sorted(path.stem for path in CONFIG_DIR.glob("*.yaml")
                            if path.stem != "base")
     args = make_parser(dataset_names).parse_args(argv)
+    args.parameter = PARAMETER_ALIASES.get(args.parameter, args.parameter)
     if args.nproc_per_node <= 0:
         raise ValueError("nproc-per-node must be positive")
     if not args.seeds:
@@ -343,7 +377,7 @@ def main(argv=None):
         )
 
     pair_count, annotation_path = training_pair_count(config)
-    if args.parameter in {"memory_ratio", "memory_size", "neighbor_k", "all"} and pair_count is None:
+    if args.parameter in {"n", "memory_size", "m", "all"} and pair_count is None:
         raise FileNotFoundError(
             "Cannot resolve the actual memory/neighbor capacity because this file "
             "is missing: {}".format(annotation_path)
@@ -367,7 +401,7 @@ def main(argv=None):
             memory_capacity(config, pair_count, args.nproc_per_node, parameter, value)
             for value in values
         ]
-        if parameter in {"memory_ratio", "memory_size"}:
+        if parameter in {"n", "memory_size"}:
             observed = [capacity for capacity in effective_memories if capacity is not None]
             if len(set(observed)) != len(observed):
                 raise ValueError(
@@ -376,23 +410,23 @@ def main(argv=None):
                     "values or the dataset config so every point changes the bank."
                     .format(parameter, observed)
                 )
-        if parameter == "neighbor_k" and pair_count is not None:
+        if parameter == "m" and pair_count is not None:
             capacity = memory_capacity(config, pair_count, args.nproc_per_node)
             clipped = [value for value in values if value > capacity]
             if clipped:
                 raise ValueError(
-                    "neighbor_k values {} exceed the configured effective memory "
+                    "m values {} exceed the configured effective memory "
                     "capacity {} and would be clipped by the model. Reduce the values "
                     "or increase the configured memory capacity.".format(clipped, capacity)
                 )
-        if parameter in {"memory_ratio", "memory_size"} and pair_count is not None:
+        if parameter in {"n", "memory_size"} and pair_count is not None:
             min_capacity = min(effective_memories)
-            configured_neighbors = int(config.get("neighbor_k", 100))
+            configured_neighbors = int(config.get("m", 100))
             if configured_neighbors > min_capacity:
                 raise ValueError(
                     "This memory sweep would also change the model's effective "
-                    "neighbor_k: the smallest bank has {} samples, while the config "
-                    "requests {} neighbors. Lower neighbor_k in the dataset config "
+                    "m: the smallest bank has {} samples, while the config "
+                    "requests {} neighbors. Lower m in the dataset config "
                     "or choose larger memory values before running the sweep."
                     .format(min_capacity, configured_neighbors)
                 )
@@ -460,12 +494,12 @@ def main(argv=None):
                 validation_mr, best_epoch = read_validation_result(
                     train_log, stdout_path
                 )
-                effective_neighbor = None
-                if parameter == "neighbor_k":
-                    effective_neighbor = min(int(value), effective_memory)
-                elif "neighbor_k" in config and effective_memory is not None:
-                    effective_neighbor = min(int(config["neighbor_k"]), effective_memory)
-                effective_value = effective_neighbor if parameter == "neighbor_k" else value
+                effective_m = None
+                if parameter == "m":
+                    effective_m = min(int(value), effective_memory)
+                elif "m" in config and effective_memory is not None:
+                    effective_m = min(int(config["m"]), effective_memory)
+                effective_value = effective_m if parameter == "m" else value
                 row = {
                     "dataset": args.dataset,
                     "parameter": parameter,
@@ -475,7 +509,7 @@ def main(argv=None):
                     "validation_mR": "" if validation_mr is None else "{:.6f}".format(validation_mr),
                     "best_epoch": "" if best_epoch is None else best_epoch,
                     "memory_samples_per_rank": "" if effective_memory is None else effective_memory,
-                    "effective_neighbor_k": "" if effective_neighbor is None else effective_neighbor,
+                    "effective_m": "" if effective_m is None else effective_m,
                     "return_code": completed.returncode,
                     "run_dir": str(run_root),
                     "train_log": "" if train_log is None else str(train_log),

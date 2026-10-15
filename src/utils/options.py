@@ -39,22 +39,29 @@ def _parser():
     parser.add_argument("--loss_names", default="itc+sdm+id+mlm+adv")
     parser.add_argument("--mlm_loss_weight", type=float, default=1.0)
     parser.add_argument("--id_loss_weight", type=float, default=1.0)
-    parser.add_argument("--cprod_alpha", type=float, default=1.0,
+    parser.add_argument("--cprod-loss-weight", "--cprod_loss_weight", "--cprod_alpha",
+                        dest="cprod_loss_weight", type=float, default=1.0,
                         help="weight of the local prototype-alignment loss")
-    parser.add_argument("--mask_pro", type=float, default=0.25)
+    parser.add_argument("--rho", "--mask_pro", dest="rho", type=float, default=0.25,
+                        help="token masking ratio (Fig. 8)")
     parser.add_argument(
         "--mask_strategy", default="random",
         choices=("random", "noun", "noun_adj", "agriculture_random"),
     )
-    parser.add_argument("--soft_weight", type=float, default=0.1)
-    parser.add_argument("--num_prototypes", type=int, default=6)
+    parser.add_argument("--alpha", "--soft_weight", dest="alpha", type=float, default=0.1,
+                        help="identity weight in the neighbor-guided soft target (Fig. 8)")
+    parser.add_argument("--K", "--num_prototypes", dest="K", type=int, default=6,
+                        help="number of learnable prototypes (Fig. 9)")
     parser.add_argument("--memory_size", type=int, default=-1)
-    parser.add_argument("--memory_ratio", type=float, default=1.0,
-                        help="fraction of current training samples retained in the memory bank")
-    parser.add_argument("--neighbor_k", type=int, default=100)
+    parser.add_argument("--n", "--memory_ratio", dest="n", type=float, default=1.0,
+                        help="fraction of current training samples retained in the memory bank (Fig. 9)")
+    parser.add_argument("--m", "--neighbor_k", dest="m", type=int, default=100,
+                        help="number of nearest memory samples used for neighbor targets (Fig. 9)")
     parser.add_argument("--neighbor_weight", type=float, default=0.001,
                         help="weight added to each retrieved neighbor identity")
-    parser.add_argument("--soft_label_alpha", type=float, default=0.5)
+    parser.add_argument("--lambda", "--lambda_", "--soft_label_alpha", dest="lambda_",
+                        type=float, default=0.5,
+                        help="hard/soft identity-loss mixing coefficient (Fig. 9)")
 
     parser.add_argument("--img_size", nargs=2, type=int, default=(384, 128))
     parser.add_argument("--stride_size", type=int, default=16)
@@ -67,8 +74,10 @@ def _parser():
     parser.add_argument("--momentum", type=float, default=0.9)
     parser.add_argument("--weight_decay", type=float, default=4.4e-5)
     parser.add_argument("--weight_decay_bias", type=float, default=0.0)
-    parser.add_argument("--alpha", type=float, default=0.9)
-    parser.add_argument("--beta", type=float, default=0.999)
+    parser.add_argument("--adam-beta1", "--adam_beta1", "--beta1", dest="adam_beta1",
+                        type=float, default=0.9)
+    parser.add_argument("--adam-beta2", "--adam_beta2", "--beta2", "--beta",
+                        dest="adam_beta2", type=float, default=0.999)
 
     parser.add_argument("--num_epoch", type=int, default=30)
     parser.add_argument("--grad_clip_max_norm", type=float, default=5.0,
@@ -102,11 +111,41 @@ def _read_config(path):
     config = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     if not isinstance(config, dict):
         raise ValueError("Configuration must be a YAML mapping: {}".format(path))
+    config = _normalize_config_keys(config)
     base = config.pop("base_config", None)
     if base:
         merged = _read_config(path.parent / base)
         merged.update(config)
         config = merged
+    return config
+
+
+def _normalize_config_keys(config):
+    """Translate legacy YAML names to the symbols used in the paper figures."""
+    config = dict(config)
+    # Older YAML files used alpha/beta for Adam and soft_weight for Fig. 8's
+    # alpha. Interpret that pair before translating soft_weight.
+    if "beta" in config:
+        config.setdefault("adam_beta2", config["beta"])
+        config.pop("beta")
+        if "alpha" in config:
+            config.setdefault("adam_beta1", config["alpha"])
+            config.pop("alpha")
+
+    aliases = {
+        "cprod_alpha": "cprod_loss_weight",
+        "mask_pro": "rho",
+        "soft_weight": "alpha",
+        "num_prototypes": "K",
+        "memory_ratio": "n",
+        "neighbor_k": "m",
+        "soft_label_alpha": "lambda_",
+        "lambda": "lambda_",
+    }
+    for old_name, new_name in aliases.items():
+        if old_name in config:
+            config.setdefault(new_name, config[old_name])
+            config.pop(old_name)
     return config
 
 
@@ -127,12 +166,20 @@ def get_args(argv=None):
     args.milestones = tuple(args.milestones)
     if args.split:
         args.val_dataset = args.split
-    if not 0.0 < args.mask_pro <= 1.0:
-        raise ValueError("mask_pro must be in (0, 1]")
+    if not 0.0 < args.rho <= 1.0:
+        raise ValueError("rho must be in (0, 1]")
+    if not 0.0 <= args.alpha <= 1.0:
+        raise ValueError("alpha must be in [0, 1]")
+    if args.K <= 0 or args.m <= 0:
+        raise ValueError("K and m must be positive")
+    if not 0.0 < args.n <= 1.0:
+        raise ValueError("n must be in (0, 1]")
+    if not 0.0 <= args.lambda_ <= 1.0:
+        raise ValueError("lambda must be in [0, 1]")
+    if not 0.0 <= args.cprod_loss_weight <= 1.0:
+        raise ValueError("cprod_loss_weight must be in [0, 1]")
     if args.neighbor_weight < 0.0:
         raise ValueError("neighbor_weight must be non-negative")
-    if args.soft_weight < 0.0:
-        raise ValueError("soft_weight must be non-negative")
     if args.temperature <= 0.0:
         raise ValueError("temperature must be positive")
     return args
