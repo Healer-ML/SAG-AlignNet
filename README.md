@@ -58,7 +58,7 @@ The first run downloads the CLIP ViT-B/16 initialization weights. For offline us
 
 ## ⇧ Train
 
-Each config uses 30 epochs and seed 1. For example, train on CCPRD with one GPU:
+Each config uses 30 epochs. For example, train on CCPRD with one GPU:
 
 ```bash
 python train.py --config-file configs/CCPRD.yaml
