@@ -19,6 +19,8 @@ class SAGAlignNet(nn.Module):
             raise ValueError("num_prototypes must be positive")
         if args.neighbor_k <= 0:
             raise ValueError("neighbor_k must be positive")
+        if args.neighbor_weight < 0.0:
+            raise ValueError("neighbor_weight must be non-negative")
         if not 0.0 <= args.cprod_alpha <= 1.0:
             raise ValueError("cprod_alpha must be in [0, 1]")
         if not 0.0 <= args.soft_label_alpha <= 1.0:
@@ -443,7 +445,9 @@ class SAGAlignNet(nn.Module):
                     shot_i = torch.gather(store_id.unsqueeze(0).repeat(numm, 1), dim=1, index=topk_indice_i) ######(64,75)
                     shot_t = torch.gather(store_id.unsqueeze(0).repeat(numm, 1), dim=1, index=topk_indice_t)
 
-                    increment_tensor = (torch.ones_like(zero_tensor_i) * 0.001).to(i_feats.device)
+                    increment_tensor = (
+                        torch.ones_like(zero_tensor_i) * self.args.neighbor_weight
+                    ).to(i_feats.device)
                     soft_lable_i = zero_tensor_i + torch.scatter_add(torch.zeros_like(zero_tensor_i).to(i_feats.device), dim=1, index=shot_i, src=increment_tensor)
                     #soft_lable_i = zero_tensor_i + torch.scatter_add(torch.zeros_like(zero_tensor_i).to(i_feats.device), dim=1, index=shot_i, src=increment_tensor) + torch.scatter_add(torch.zeros_like(zero_tensor_i).to(i_feats.device),dim=1,index=shot_t, src=increment_tensor)
                     #soft_lable_t = soft_lable_i

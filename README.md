@@ -27,26 +27,27 @@
 
 Dataset statistics are taken from Table 11 of reference [1].
 
-## Paper hyperparameters
+## Sensitivity analysis
 
-The dataset configs use the best values shown in Figures 8 and 9 of [1]. Here,
-`α` is `cprod_alpha` (local prototype-alignment loss weight), `ρ` is `mask_pro`
-(token masking ratio), `K` is `num_prototypes`, `n` is `memory_ratio` (fraction
-of training pairs retained in the memory bank), `m` is `neighbor_k`, and `λ` is
-`soft_label_alpha`.
+`tools/run_sensitivity.py` sweeps arguments that are read by the current
+training code: `cprod_alpha`, `mask_pro`, `num_prototypes`, `memory_ratio`,
+`memory_size`, `neighbor_k`, `neighbor_weight`, `soft_label_alpha`,
+`soft_weight`, and `temperature`. It uses each dataset YAML as the baseline,
+changes one argument per run, selects checkpoints with validation mR, and saves
+the full run configuration and results as JSON and CSV. See
+[`ABLATION_PARAMETERS.md`](ABLATION_PARAMETERS.md) for parameter behavior,
+default sweep values, checks, and commands.
 
-| Dataset | α | ρ | K | n | m | λ |
-|:--|--:|--:|--:|--:|--:|--:|
-| FRS-CMR | 0.55 | 0.40 | 2 | 50% | 100 | 0.50 |
-| CroDis4CMR | 0.40 | 0.25 | 6 | 50% | 100 | 0.50 |
-| CCPRD | 0.70 | 0.20 | 6 | 75% | 25 | 0.50 |
-| GjPest4CMR | 0.70 | 0.30 | 6 | 75% | 100 | 0.25 |
-| FruDis4CMR | 0.55 | 0.55 | 2 | 100% | 25 | 0.50 |
+The memory bank uses both `memory_ratio` and the optional `memory_size` cap.
+The model limits the effective `neighbor_k` to the number of samples in that
+bank. The runner checks these effective values before starting a sweep.
+`neighbor_weight` is configurable with a default of `0.001`, preserving the
+previous constant in the neighbor-target code.
 
-All configs share the paper's 30 epochs, Adam optimizer, initial learning rate
-`1e-5`, `384×128` image input, 77-token text limit, and gradient clipping at
-norm 5. The separate `soft_weight` option is retained for the implementation's
-classifier targets; it is not the paper's CProD `α` or soft-label `λ`.
+The options `alpha` and `beta` configure Adam's optimizer betas.
+`masked_token_rate` and `masked_token_unchanged_rate` are accepted legacy
+fields and currently do not affect the active training path; they are excluded
+from sensitivity sweeps.
 
 Dataset images and annotations are not included. Prepare the data locally. The standard output layout is:
 

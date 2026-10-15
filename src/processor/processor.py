@@ -142,7 +142,13 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
         store1 = [memory_i]################
         store2 = [memory_t]################
         idstore = [memory_id]###############
-        logger.info(f"Memory bank updated with {memory_i.size(0)} samples")
+        effective_neighbor_k = min(args.neighbor_k, memory_i.size(0))
+        logger.info(
+            "Memory bank updated: %d samples (ratio=%.4f, cap=%d); "
+            "neighbor_k requested=%d effective=%d neighbor_weight=%.6g",
+            memory_i.size(0), args.memory_ratio, args.memory_size,
+            args.neighbor_k, effective_neighbor_k, args.neighbor_weight,
+        )
         if tb_writer is not None:
             tb_writer.add_scalar('lr', scheduler.get_lr()[0], epoch)
             tb_writer.add_scalar('temperature', ret['temperature'], epoch)

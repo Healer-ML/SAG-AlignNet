@@ -26,6 +26,7 @@ num_prototypes: 6
 memory_size: -1
 memory_ratio: 1.0
 neighbor_k: 100
+neighbor_weight: 0.001
 soft_label_alpha: 0.5
 
 img_size: [384, 128]

@@ -52,6 +52,8 @@ def _parser():
     parser.add_argument("--memory_ratio", type=float, default=1.0,
                         help="fraction of current training samples retained in the memory bank")
     parser.add_argument("--neighbor_k", type=int, default=100)
+    parser.add_argument("--neighbor_weight", type=float, default=0.001,
+                        help="weight added to each retrieved neighbor identity")
     parser.add_argument("--soft_label_alpha", type=float, default=0.5)
 
     parser.add_argument("--img_size", nargs=2, type=int, default=(384, 128))
@@ -125,4 +127,12 @@ def get_args(argv=None):
     args.milestones = tuple(args.milestones)
     if args.split:
         args.val_dataset = args.split
+    if not 0.0 < args.mask_pro <= 1.0:
+        raise ValueError("mask_pro must be in (0, 1]")
+    if args.neighbor_weight < 0.0:
+        raise ValueError("neighbor_weight must be non-negative")
+    if args.soft_weight < 0.0:
+        raise ValueError("soft_weight must be non-negative")
+    if args.temperature <= 0.0:
+        raise ValueError("temperature must be positive")
     return args
