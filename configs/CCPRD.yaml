@@ -1,5 +1,10 @@
 base_config: base.yaml
 dataset_name: CCPRD
 root_dir: data/AgriSearch/CCPRD
+cprod_alpha: 0.7
 mask_pro: 0.2
+num_prototypes: 6
+memory_ratio: 0.75
+neighbor_k: 25
+soft_label_alpha: 0.5
 soft_weight: 0.7

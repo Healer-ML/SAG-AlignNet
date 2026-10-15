@@ -14,6 +14,10 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
     log_period = args.log_period
     eval_period = args.eval_period
     device = args.device
+    if args.memory_size == 0 or args.memory_size < -1:
+        raise ValueError("memory_size must be -1 or a positive integer")
+    if not 0.0 < args.memory_ratio <= 1.0:
+        raise ValueError("memory_ratio must be in (0, 1]")
     if args.distributed and device.startswith("cuda"):
         device = "cuda:{}".format(args.local_rank)
     num_epoch = args.num_epoch
@@ -109,6 +113,10 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
 
             optimizer.zero_grad()
             total_loss.backward()
+            if args.grad_clip_max_norm > 0:
+                torch.nn.utils.clip_grad_norm_(
+                    model.parameters(), max_norm=args.grad_clip_max_norm
+                )
             optimizer.step()
             if (n_iter + 1) % log_period == 0:
                 info_str = f"Epoch[{epoch}] Iteration[{n_iter + 1}/{len(train_loader)}]"
@@ -122,11 +130,12 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
         memory_i = torch.cat(store1_tem, dim=0)
         memory_t = torch.cat(store2_tem, dim=0)
         memory_id = torch.cat(idstore_tem, dim=0)
-        if args.memory_size == 0 or args.memory_size < -1:
-            raise ValueError("memory_size must be -1 or a positive integer")
-        if args.memory_size > 0 and args.memory_size < memory_i.size(0):
+        memory_limit = max(1, int(round(memory_i.size(0) * args.memory_ratio)))
+        if args.memory_size > 0:
+            memory_limit = min(memory_limit, args.memory_size)
+        if memory_limit < memory_i.size(0):
             # Uniformly sample once per epoch; the existing global seed makes this reproducible.
-            indices = torch.randperm(memory_i.size(0), device=memory_i.device)[:args.memory_size]
+            indices = torch.randperm(memory_i.size(0), device=memory_i.device)[:memory_limit]
             memory_i = memory_i[indices]
             memory_t = memory_t[indices]
             memory_id = memory_id[indices]

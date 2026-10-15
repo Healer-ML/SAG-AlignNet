@@ -1,5 +1,10 @@
 base_config: base.yaml
 dataset_name: FRS-CMR
 root_dir: data/AgriSearch/FRS-CMR
+cprod_alpha: 0.55
 mask_pro: 0.4
+num_prototypes: 2
+memory_ratio: 0.5
+neighbor_k: 100
+soft_label_alpha: 0.5
 soft_weight: 0.55

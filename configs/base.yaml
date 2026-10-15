@@ -20,9 +20,11 @@ MLM: true
 loss_names: itc+sdm+id+adv+mlm
 mlm_loss_weight: 1.0
 id_loss_weight: 1.0
+cprod_alpha: 1.0
 mask_strategy: random
 num_prototypes: 6
 memory_size: -1
+memory_ratio: 1.0
 neighbor_k: 100
 soft_label_alpha: 0.5
 
@@ -32,7 +34,7 @@ text_length: 77
 vocab_size: 49408
 
 optimizer: Adam
-lr: 0.000011
+lr: 0.00001
 bias_lr_factor: 2.0
 momentum: 0.9
 weight_decay: 0.000044
@@ -41,6 +43,7 @@ alpha: 0.9
 beta: 0.999
 
 num_epoch: 30
+grad_clip_max_norm: 5.0
 milestones: [20, 50]
 gamma: 0.1
 warmup_factor: 0.1

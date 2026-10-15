@@ -19,6 +19,8 @@ class SAGAlignNet(nn.Module):
             raise ValueError("num_prototypes must be positive")
         if args.neighbor_k <= 0:
             raise ValueError("neighbor_k must be positive")
+        if not 0.0 <= args.cprod_alpha <= 1.0:
+            raise ValueError("cprod_alpha must be in [0, 1]")
         if not 0.0 <= args.soft_label_alpha <= 1.0:
             raise ValueError("soft_label_alpha must be in [0, 1]")
         self._set_task()
@@ -393,7 +395,13 @@ class SAGAlignNet(nn.Module):
                 })
             output_i_c = torch.cat(output_i,dim=1).float()
             output_t_c = torch.cat(output_t,dim=1).float()
-            ret.update({'xld_loss':objectives.compute_js_sdm(output_i_c, output_t_c, batch['pids'], logit_scale)*self.args.id_loss_weight})
+            local_prototype_loss = objectives.compute_js_sdm(
+                output_i_c, output_t_c, batch['pids'], logit_scale
+            )
+            ret.update({
+                'xld_loss': local_prototype_loss * self.args.cprod_alpha
+                * self.args.id_loss_weight
+            })
             total_6 = 0
             for i in range(self.num_prototypes):
                 image_6 = self.mlm_head_6(output_i[i]).float()

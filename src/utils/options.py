@@ -39,6 +39,8 @@ def _parser():
     parser.add_argument("--loss_names", default="itc+sdm+id+mlm+adv")
     parser.add_argument("--mlm_loss_weight", type=float, default=1.0)
     parser.add_argument("--id_loss_weight", type=float, default=1.0)
+    parser.add_argument("--cprod_alpha", type=float, default=1.0,
+                        help="weight of the local prototype-alignment loss")
     parser.add_argument("--mask_pro", type=float, default=0.25)
     parser.add_argument(
         "--mask_strategy", default="random",
@@ -47,6 +49,8 @@ def _parser():
     parser.add_argument("--soft_weight", type=float, default=0.1)
     parser.add_argument("--num_prototypes", type=int, default=6)
     parser.add_argument("--memory_size", type=int, default=-1)
+    parser.add_argument("--memory_ratio", type=float, default=1.0,
+                        help="fraction of current training samples retained in the memory bank")
     parser.add_argument("--neighbor_k", type=int, default=100)
     parser.add_argument("--soft_label_alpha", type=float, default=0.5)
 
@@ -56,7 +60,7 @@ def _parser():
     parser.add_argument("--vocab_size", type=int, default=49408)
 
     parser.add_argument("--optimizer", default="Adam", choices=("SGD", "Adam", "AdamW"))
-    parser.add_argument("--lr", type=float, default=1.1e-5)
+    parser.add_argument("--lr", type=float, default=1.0e-5)
     parser.add_argument("--bias_lr_factor", type=float, default=2.0)
     parser.add_argument("--momentum", type=float, default=0.9)
     parser.add_argument("--weight_decay", type=float, default=4.4e-5)
@@ -65,6 +69,8 @@ def _parser():
     parser.add_argument("--beta", type=float, default=0.999)
 
     parser.add_argument("--num_epoch", type=int, default=30)
+    parser.add_argument("--grad_clip_max_norm", type=float, default=5.0,
+                        help="maximum gradient norm; set <= 0 to disable clipping")
     parser.add_argument("--milestones", nargs="+", type=int, default=(20, 50))
     parser.add_argument("--gamma", type=float, default=0.1)
     parser.add_argument("--warmup_factor", type=float, default=0.1)

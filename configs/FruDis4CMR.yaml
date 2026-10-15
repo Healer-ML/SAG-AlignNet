@@ -1,5 +1,10 @@
 base_config: base.yaml
 dataset_name: FruDis4CMR
 root_dir: data/AgriSearch/FruDis4CMR
+cprod_alpha: 0.55
 mask_pro: 0.55
+num_prototypes: 2
+memory_ratio: 1.0
+neighbor_k: 25
+soft_label_alpha: 0.5
 soft_weight: 0.55
