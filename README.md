@@ -103,7 +103,7 @@ python evaluate.py \
   --eval_output outputs/CCPRD_val.json
 ```
 
-The output includes I2T and T2I R@1, R@5, R@10, plus bidirectional mR. Use `--split test` for test-set evaluation.
+The output includes I2T and T2I R@1, R@5, R@10, plus bidirectional mR. 
 
 The released checkpoints are historical runs created with the shared
 six-prototype architecture. For the FRS-CMR and FruDis4CMR checkpoints, whose
@@ -112,8 +112,6 @@ historical weights. New training runs should use the values in their dataset
 config.
 
 ## ⇩ Checkpoints and code
-
-Checkpoints are model-only files tracked with Git LFS. The released weights are historical runs whose checkpoint selection used the test split; use validation-based selection for new experiments. See [`checkpoints/README.md`](checkpoints/README.md) for details.
 
 The core code is grouped under `src/`; configs and data-preparation tools are easy to find at the repository root.
 
