@@ -95,12 +95,11 @@ The core code is grouped under `src/`; configs and data-preparation tools are ea
 
 ## § Citation
 
-[1] Kejian Yu, Wentao Ma, Tongqing Zhou, Mengyu Wang, Wenxuan Tu, Siwei Wang, Zhiping Cai, and Xinwang Liu. “AgriSearch: Using Agricultural Ubiquitous Perception for Image-Text Cross-Modal Retrieval via LLMs.” Unpublished manuscript.
 
 ```bibtex
 @unpublished{yu_agrisearch,
   author = {Yu, Kejian and Ma, Wentao and Zhou, Tongqing and Wang, Mengyu and Tu, Wenxuan and Wang, Siwei and Cai, Zhiping and Liu, Xinwang},
   title  = {AgriSearch: Using Agricultural Ubiquitous Perception for Image-Text Cross-Modal Retrieval via LLMs},
-  note   = {Unpublished manuscript}
+  note   = {Under Review}
 }
 ```
