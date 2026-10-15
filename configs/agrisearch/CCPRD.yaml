@@ -1,0 +1,5 @@
+base_config: base.yaml
+dataset_name: agr
+root_dir: data/AgriSearch/CCPRD
+mask_pro: 0.2
+soft_weight: 0.7

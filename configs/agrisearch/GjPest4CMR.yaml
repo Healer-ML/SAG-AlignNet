@@ -1,0 +1,5 @@
+base_config: base.yaml
+dataset_name: wp
+root_dir: data/AgriSearch/GjPest4CMR
+mask_pro: 0.55
+soft_weight: 0.55

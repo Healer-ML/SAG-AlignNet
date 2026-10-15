@@ -1,0 +1,67 @@
+{
+  "method": "SAG-AlignNet",
+  "artifact_type": "model-only inference checkpoint",
+  "source_seed": 1,
+  "source_num_epoch": 30,
+  "pretrain_choice": "ViT-B/16",
+  "input_size": [384, 128],
+  "optimizer_state_included": false,
+  "selection_split_warning": "The source run configs selected the saved best checkpoint on the test split. These are historical artifacts, not a clean held-out test protocol.",
+  "checkpoints": [
+    {
+      "file": "FRS-CMR.pth",
+      "benchmark_dataset": "FRS-CMR",
+      "internal_dataset_key": "farm",
+      "source_run": "seed1_runs_20260922/results/farm/20260923_032810_full_seed1",
+      "selected_epoch": 17,
+      "mask_pro": 0.4,
+      "soft_weight": 0.55,
+      "temperature": 0.02,
+      "selection_split": "test"
+    },
+    {
+      "file": "CroDis4CMR.pth",
+      "benchmark_dataset": "CroDis4CMR",
+      "internal_dataset_key": "crop",
+      "source_run": "seed1_runs_20260922/results/crop/20260923_064257_full_seed1",
+      "selected_epoch": 21,
+      "mask_pro": 0.25,
+      "soft_weight": 0.1,
+      "temperature": 0.02,
+      "selection_split": "test"
+    },
+    {
+      "file": "CCPRD.pth",
+      "benchmark_dataset": "CCPRD",
+      "internal_dataset_key": "agr",
+      "source_run": "seed1_runs_20260922/results/agr/20260922_233415_full_seed1",
+      "selected_epoch": 26,
+      "mask_pro": 0.2,
+      "soft_weight": 0.7,
+      "temperature": 0.02,
+      "selection_split": "test"
+    },
+    {
+      "file": "GjPest4CMR.pth",
+      "benchmark_dataset": "GjPest4CMR",
+      "internal_dataset_key": "wp",
+      "source_run": "runs_full_wp_fruit_seed1345_30ep_20261014/wp/20261014_084323_full_wp_seed1",
+      "selected_epoch": 25,
+      "mask_pro": 0.55,
+      "soft_weight": 0.55,
+      "temperature": 0.02,
+      "selection_split": "test"
+    },
+    {
+      "file": "FruDis4CMR.pth",
+      "benchmark_dataset": "FruDis4CMR",
+      "internal_dataset_key": "fruit",
+      "source_run": "runs_full_wp_fruit_seed1345_30ep_20261014/fruit/20261014_084323_full_fruit_seed1",
+      "selected_epoch": 27,
+      "mask_pro": 0.55,
+      "soft_weight": 0.55,
+      "temperature": 0.02,
+      "selection_split": "test"
+    }
+  ]
+}

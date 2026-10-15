@@ -1,0 +1,58 @@
+# Shared 30-epoch SAG-AlignNet training recipe.
+name: sag-alignnet
+output_dir: outputs
+log_period: 100
+eval_period: 1
+val_dataset: val
+device: cuda
+seed: 1
+deterministic: true
+
+pretrain_choice: ViT-B/16
+temperature: 0.02
+img_aug: true
+cmt_depth: 4
+masked_token_rate: 0.8
+masked_token_unchanged_rate: 0.1
+lr_factor: 5.0
+MLM: true
+
+loss_names: itc+sdm+id+adv+mlm
+mlm_loss_weight: 1.0
+id_loss_weight: 1.0
+mask_strategy: random
+num_prototypes: 6
+memory_size: -1
+neighbor_k: 100
+soft_label_alpha: 0.5
+
+img_size: [384, 128]
+stride_size: 16
+text_length: 77
+vocab_size: 49408
+
+optimizer: Adam
+lr: 0.000011
+bias_lr_factor: 2.0
+momentum: 0.9
+weight_decay: 0.000044
+weight_decay_bias: 0.0
+alpha: 0.9
+beta: 0.999
+
+num_epoch: 30
+milestones: [20, 50]
+gamma: 0.1
+warmup_factor: 0.1
+warmup_epochs: 8
+warmup_method: linear
+lrscheduler: cosine
+target_lr: 0.0
+power: 0.9
+
+sampler: random
+num_instance: 4
+batch_size: 64
+test_batch_size: 128
+num_workers: 8
+mechanism_variant: native

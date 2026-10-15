@@ -1,0 +1,12 @@
+# Local dataset and experiment artifacts; keep only the tokenizer asset and note.
+/data/*
+!/data/bpe_simple_vocab_16e6.txt.gz
+!/data/readme.md
+/outputs/
+/logs/
+/runs/
+__pycache__/
+*.py[cod]
+*.log
+.pytest_cache/
+.tensorboard/

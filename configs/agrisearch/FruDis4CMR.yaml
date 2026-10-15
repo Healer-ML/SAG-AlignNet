@@ -1,0 +1,5 @@
+base_config: base.yaml
+dataset_name: fruit
+root_dir: data/AgriSearch/FruDis4CMR
+mask_pro: 0.55
+soft_weight: 0.55
