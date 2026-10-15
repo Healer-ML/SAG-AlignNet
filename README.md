@@ -105,11 +105,6 @@ python evaluate.py \
 
 The output includes I2T and T2I R@1, R@5, R@10, plus bidirectional mR. 
 
-The released checkpoints are historical runs created with the shared
-six-prototype architecture. For the FRS-CMR and FruDis4CMR checkpoints, whose
-new training configs use `K=2`, add `--K 6` when evaluating those
-historical weights. New training runs should use the values in their dataset
-config.
 
 ## ⇩ Checkpoints and code
 
