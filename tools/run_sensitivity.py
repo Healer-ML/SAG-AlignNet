@@ -94,10 +94,19 @@ def normalize_config_keys(config):
         if old_name in config:
             config.setdefault(new_name, config.pop(old_name))
     if "loss_names" in config:
-        config["loss_names"] = "+".join(
-            "matching_label" if name.strip() == "id" else name.strip()
-            for name in str(config["loss_names"]).split("+")
-        )
+        aliases = {
+            "id": ("matching_label",),
+            "js": ("sdm",),
+            "cprod": ("sdm", "matching_label"),
+            "amp": ("adv",),
+            "masalign": ("mlm",),
+        }
+        normalized = []
+        for name in str(config["loss_names"]).split("+"):
+            for branch in aliases.get(name.strip(), (name.strip(),)):
+                if branch and branch not in normalized:
+                    normalized.append(branch)
+        config["loss_names"] = "+".join(normalized)
     return config
 
 

@@ -41,7 +41,9 @@ settings.
 Adam uses the separate keys `adam_beta1` and `adam_beta2`; they are not the
 figure's α or λ. Legacy YAML names and CLI aliases (`soft_weight`, `mask_pro`,
 `num_prototypes`, `memory_ratio`, `neighbor_k`, and `soft_label_alpha`) remain
-supported. The former `id` loss-name token is normalized to `matching_label`.
+supported. The paper-level loss-name tokens `cprod`, `amp`, and `masalign` are
+normalized to the training branches `sdm+matching_label`, `adv`, and `mlm`.
+The former `id` token is still normalized to `matching_label`.
 The old Adam `alpha`/`beta` pair is supported when read from YAML.
 
 Memory capacity is computed as `min(round(samples_per_rank × n), memory_size)`
