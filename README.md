@@ -23,7 +23,7 @@
 | CroDis4CMR | 13 | 9,460 | `configs/CroDis4CMR.yaml` | `checkpoints/CroDis4CMR.pth` |
 | CCPRD | 102 | 6,628 | `configs/CCPRD.yaml` | `checkpoints/CCPRD.pth` |
 | GjPest4CMR | 17 | 9,496 | `configs/GjPest4CMR.yaml` | `checkpoints/GjPest4CMR.pth` |
-| FruDis4CMR | 17 | 18,524 | `configs/FruDis4CMR.yaml` | `checkpoints/FruDis4CMR.pth` |
+| FruDis4CMR | 16 | 18,524 | `configs/FruDis4CMR.yaml` | `checkpoints/FruDis4CMR.pth` |
 
 Dataset statistics are taken from Table 11 of reference [1].
 
