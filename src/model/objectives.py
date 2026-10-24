@@ -42,10 +42,11 @@ def compute_sdm(image_fetures, text_fetures, pid, logit_scale, image_id=None, fa
     return loss
 
 
-def compute_js_sdm(image_fetures, text_fetures, pid, logit_scale, image_id=None, factor=0.3, epsilon=1e-8):
-    """
-    Similarity Distribution Matching
-    """
+def compute_js_sdm(
+    image_fetures, text_fetures, pid, logit_scale, image_id=None,
+    factor=0.3, epsilon=1e-8, gamma=0.04,
+):
+    """Symmetric JS alignment of image/text similarity distributions."""
     batch_size = image_fetures.shape[0]
     pid = pid.reshape((batch_size, 1)) # make sure pid size is [batch_size, 1]
     pid_dist = pid - pid.t()
@@ -74,13 +75,13 @@ def compute_js_sdm(image_fetures, text_fetures, pid, logit_scale, image_id=None,
 
     i2t_pred = F.softmax(image_proj_text, dim=1)
     js_distribute1 = (i2t_pred + labels_distribute) / 2
-    i2t_loss = (0.5 * i2t_pred * (F.log_softmax(image_proj_text, dim=1) - torch.log(js_distribute1)) + 0.5 * labels_distribute * (torch.log(labels_distribute) - torch.log(js_distribute1)))/0.04
+    i2t_loss = (0.5 * i2t_pred * (F.log_softmax(image_proj_text, dim=1) - torch.log(js_distribute1)) + 0.5 * labels_distribute * (torch.log(labels_distribute) - torch.log(js_distribute1)))/gamma
     #i2t_loss = i2t_pred * (F.log_softmax(image_proj_text, dim=1) - torch.log(labels_distribute + epsilon))
 
 
     t2i_pred = F.softmax(text_proj_image, dim=1)
     js_distribute2 = (t2i_pred + labels_distribute) / 2
-    t2i_loss = (0.5 * t2i_pred * (F.log_softmax(text_proj_image, dim=1) - torch.log(js_distribute2)) + 0.5 * labels_distribute * (torch.log(labels_distribute) - torch.log(js_distribute2)))/0.04
+    t2i_loss = (0.5 * t2i_pred * (F.log_softmax(text_proj_image, dim=1) - torch.log(js_distribute2)) + 0.5 * labels_distribute * (torch.log(labels_distribute) - torch.log(js_distribute2)))/gamma
     #t2i_loss = t2i_pred * (F.log_softmax(text_proj_image, dim=1) - torch.log(labels_distribute + epsilon))
 
     loss = torch.mean(torch.sum(i2t_loss, dim=1)) + torch.mean(torch.sum(t2i_loss, dim=1))

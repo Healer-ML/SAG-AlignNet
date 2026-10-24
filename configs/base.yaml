@@ -10,6 +10,7 @@ deterministic: true
 
 pretrain_choice: ViT-B/16
 temperature: 0.02
+js_gamma: 0.04
 img_aug: true
 cmt_depth: 4
 masked_token_rate: 0.8
@@ -17,7 +18,7 @@ masked_token_unchanged_rate: 0.1
 lr_factor: 5.0
 MLM: true
 
-loss_names: itc+sdm+matching_label+adv+mlm
+loss_names: itc+cprod+amp+masalign
 mlm_loss_weight: 1.0
 alpha: 0.1
 rho: 0.25

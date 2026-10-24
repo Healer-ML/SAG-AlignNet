@@ -1,51 +1,38 @@
 <div align="center">
 
-<h1><img src="asset/agri-mark.svg" alt="" width="42"> SAG-AlignNet</h1>
+# AgriSearch: SAG-AlignNet
 
-![Python](https://img.shields.io/badge/Python-3.8-3776AB?logo=python&logoColor=white)
-![PyTorch](https://img.shields.io/badge/PyTorch-2.1.1%2Bcu121-EE4C2C?logo=pytorch&logoColor=white)
-![Task](https://img.shields.io/badge/Task-Image--Text%20Retrieval-496A81)
-![Datasets](https://img.shields.io/badge/AgriSearch-5%20datasets-658C6A)
+**A Multi-Domain Benchmark and Alignment Framework for Agricultural Image-Text Retrieval**
 
-<img src="asset/model.png" alt="SAG-AlignNet architecture" width="880">
+[![Python](https://img.shields.io/badge/Python-3.8-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.1.1%2Bcu121-EE4C2C?logo=pytorch&logoColor=white)](https://pytorch.org/)
+[![Task](https://img.shields.io/badge/Task-Image--Text%20Retrieval-496A81)](#sag-alignnet)
 
-<sub><b>Figure 1.</b> SAG-AlignNet architecture.</sub>
+<img src="asset/model.png" alt="SAG-AlignNet architecture from the paper" width="880">
+
+**SAG-AlignNet architecture.** [Open the vector PDF](asset/model.pdf).
 
 </div>
 
 ---
 
-## ▦ Datasets
+AgriSearch introduces **SAG-Bench**, a five-dataset agricultural image-text retrieval benchmark, and **SAG-AlignNet**, a model combining Cross-modal Prototype Distillation (CProD), Masked Alignment (MasAlign), JS-divergence alignment, and Auxiliary Modality Preservation (AMP). The diagram above and implementation details in this repository correspond to the current manuscript.
 
-| Dataset | Classes | Images | Config | Checkpoint |
-|:--|--:|--:|:--|:--|
-| FRS-CMR | 13 | 22,602 | `configs/FRS-CMR.yaml` | `checkpoints/FRS-CMR.pth` |
-| CroDis4CMR | 13 | 9,460 | `configs/CroDis4CMR.yaml` | `checkpoints/CroDis4CMR.pth` |
-| CCPRD | 102 | 6,628 | `configs/CCPRD.yaml` | `checkpoints/CCPRD.pth` |
-| GjPest4CMR | 17 | 9,496 | `configs/GjPest4CMR.yaml` | `checkpoints/GjPest4CMR.pth` |
-| FruDis4CMR | 16 | 18,524 | `configs/FruDis4CMR.yaml` | `checkpoints/FruDis4CMR.pth` |
+## SAG-Bench datasets
 
-Dataset statistics are taken from Table 11 of reference [1].
+The counts and splits below follow Table `Dataset statistics, image sources, and data splits used in AgriSearch` in the manuscript.
 
-## Sensitivity analysis
+| Dataset | Source | Classes | Images | Texts / image | Train | Validation | Test | Config |
+|:--|:--|--:|--:|--:|--:|--:|--:|:--|
+| FRS-CMR | FIT | 13 | 22,602 | 3 | 18,081 | 2,260 | 2,261 | [`configs/FRS-CMR.yaml`](configs/FRS-CMR.yaml) |
+| CroDis4CMR | CDDM | 13 | 9,460 | 3 | 7,567 | 946 | 947 | [`configs/CroDis4CMR.yaml`](configs/CroDis4CMR.yaml) |
+| CCPRD | IP102 | 102 | 6,628 | 5 | 5,302 | 663 | 663 | [`configs/CCPRD.yaml`](configs/CCPRD.yaml) |
+| GjPest4CMR | WPIT9K | 17 | 9,496 | 3 | 7,596 | 949 | 951 | [`configs/GjPest4CMR.yaml`](configs/GjPest4CMR.yaml) |
+| FruDis4CMR | CDDM | 16 | 18,524 | 3 | 14,819 | 1,852 | 1,853 | [`configs/FruDis4CMR.yaml`](configs/FruDis4CMR.yaml) |
 
-`tools/run_sensitivity.py` sweeps the six parameters in Figs. 8–9 using the
-same symbols: `alpha` (α), `rho` (ρ), `K`, `n`, `m`, and `lambda_` (λ). It also
-includes implementation controls such as `memory_size`, `neighbor_weight`, and
-`temperature`. Each run changes one parameter, selects
-a checkpoint with validation mR, and saves results as JSON and CSV. See
-[`ABLATION_PARAMETERS.md`](ABLATION_PARAMETERS.md) for definitions, exact sweep
-values, and commands.
+Dataset images and annotations are not included in this repository. **The dataset release is planned after paper acceptance.** Until then, obtain the source data through its original access route and follow its terms. The preparation utility preserves supplied splits; its optional `--generate-splits` mode creates new splits and does not reproduce the manuscript's reported results.
 
-Adam uses the separate keys `adam_beta1` and `adam_beta2`. The masking ratio
-`rho` and memory fraction `n` are distinct controls. The model caps effective
-`m` by the number of items in the memory bank. Legacy config and CLI names are
-accepted for existing runs. The legacy Adam `alpha`/`beta` pair is mapped when it appears in a YAML config.
-
-`masked_token_rate` and `masked_token_unchanged_rate` are accepted legacy
-fields and currently do not affect the active training path; they are excluded
-from sensitivity sweeps.
-Dataset images and annotations are not included. Prepare the data locally. The standard output layout is:
+Expected local layout:
 
 ```text
 data/AgriSearch/<dataset>/{img,json/<dataset>.json}
@@ -60,9 +47,34 @@ python tools/prepare_agrisearch.py \
   --check-images
 ```
 
-The script preserves existing splits. To create new deterministic 80/10/10 splits, add `--generate-splits --seed 1`.
+## SAG-AlignNet
 
-## ⚙ Environment
+- **Encoder:** CLIP ViT-B/16 with 512-dimensional embeddings.
+- **Cross-modal Transformer:** 4 layers and 8 attention heads.
+- **CProD:** `K` shared learnable prototypes, per-prototype 512-to-512 projections, and a `K`-way prototype prediction head. It stores detached prototype features from the preceding epoch, retrieves top-`m` neighbors for each prototype, and uses the final prototype branch's neighborhood to form the neighbor-guided soft target, as specified in the paper. Epoch 1 uses hard-label supervision only; subsequent epochs mix hard and soft label losses with `lambda`.
+- **MasAlign:** masks eligible text tokens at ratio `rho`, then uses visual context for token reconstruction and binary masked-position prediction. Its error-augmented branch samples from the top `Ke=32` predictions and avoids replacing a masked token with its original token.
+- **JS alignment:** symmetric image-to-text and text-to-image JS divergence, with `tau=0.02` and fixed `gamma=0.04`.
+- **AMP:** a lightweight modality classifier trained with the visual/text modality labels.
+
+The model uses 384 × 128 images, a maximum text length of 77, and a 49,408-token prediction vocabulary. Image augmentation uses random horizontal flipping, cropping, and erasing.
+
+### Training recipe
+
+All five dataset configs use the manuscript's 30-epoch recipe: Adam, batch size 64, base learning rate `1e-5`, a `5×` learning-rate multiplier for randomly initialized modules, and maximum gradient norm 5.0. The shared fixed settings are `theta=0.001`, `Ke=32`, `tau=0.02`, `gamma=0.04`; each dataset config specifies `alpha`, `rho`, `K`, `n`, `m`, and `lambda`. The base config sets seed 2 for the single-run results described in the manuscript.
+
+| Dataset | `alpha` | `rho` | `K` | `n` | `m` | `lambda` |
+|:--|--:|--:|--:|--:|--:|--:|
+| FRS-CMR | 0.55 | 0.40 | 2 | 0.50 | 100 | 0.50 |
+| CroDis4CMR | 0.10 | 0.25 | 6 | 0.50 | 100 | 0.50 |
+| CCPRD | 0.70 | 0.20 | 6 | 0.75 | 25 | 0.50 |
+| GjPest4CMR | 0.55 | 0.30 | 6 | 0.75 | 100 | 0.25 |
+| FruDis4CMR | 0.55 | 0.55 | 2 | 1.00 | 25 | 0.50 |
+
+### Sensitivity analysis and module comparisons
+
+[`tools/run_sensitivity.py`](tools/run_sensitivity.py) sweeps `alpha`, `rho`, `K`, `n`, `m`, and `lambda` using the symbols and values reported in Figs. 8–9. Definitions and commands are in [`ABLATION_PARAMETERS.md`](ABLATION_PARAMETERS.md). The optional `mechanism_variant` setting supports the module replacements used in the paper's comparisons; the default `native` setting selects the proposed CProD and MasAlign modules.
+
+## Environment
 
 Reference setup: Python 3.8, PyTorch 2.1.1, CUDA 12.1.
 
@@ -74,9 +86,9 @@ pip install -r requirements.txt
 
 The first run downloads the CLIP ViT-B/16 initialization weights. For offline use, set `pretrain_choice` in the config to a local weight file.
 
-## ⇧ Train
+## Train
 
-Each config uses 30 epochs. For example, train on CCPRD with one GPU:
+Train on CCPRD with one GPU:
 
 ```bash
 python train.py --config-file configs/CCPRD.yaml
@@ -89,11 +101,9 @@ CUDA_VISIBLE_DEVICES=0,1 torchrun --standalone --nproc_per_node=2 \
   train.py --config-file configs/CCPRD.yaml
 ```
 
-Replace `CCPRD.yaml` with another dataset config to change the dataset. The best validation checkpoint and training logs are written under `outputs/`.
+Replace `CCPRD.yaml` with another dataset config to select a different benchmark dataset. The best validation checkpoint and logs are written under `outputs/`.
 
-## ⌕ Evaluate
-
-Evaluate a checkpoint and save bidirectional retrieval metrics:
+## Evaluate
 
 ```bash
 python evaluate.py \
@@ -103,20 +113,14 @@ python evaluate.py \
   --eval_output outputs/CCPRD_val.json
 ```
 
-The output includes I2T and T2I R@1, R@5, R@10, plus bidirectional mR. 
+The output reports I2T and T2I R@1, R@5, and R@10, together with bidirectional mean recall (mR).
 
-
-## ⇩ Checkpoints and code
-
-The core code is grouped under `src/`; configs and data-preparation tools are easy to find at the repository root.
-
-## § Citation
-
+## Citation
 
 ```bibtex
-@unpublished{yu_agrisearch,
-  author = {Yu, Kejian and Ma, Wentao and Zhou, Tongqing and Wang, Mengyu and Tu, Wenxuan and Wang, Siwei and Cai, Zhiping and Liu, Xinwang},
-  title  = {AgriSearch: Using Agricultural Ubiquitous Perception for Image-Text Cross-Modal Retrieval via LLMs},
-  note   = {Under Review}
+@article{yu2026agrisearch,
+  author  = {Yu, Kejian and Ma, Wentao and Zhou, Tongqing and Wang, Mengyu and Tu, Wenxuan and Wang, Siwei and Cai, Zhiping and Liu, Xinwang},
+  title   = {AgriSearch: A Multi-Domain Benchmark and Alignment Framework for Agricultural Image-Text Retrieval},
+  note    = {Under review}
 }
 ```

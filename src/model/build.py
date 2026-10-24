@@ -383,11 +383,14 @@ class SAGAlignNet(nn.Module):
         if 'itc' in self.current_task:
             ret.update({'itc_loss':objectives.compute_itc(i_feats, t_feats, logit_scale)})
         if 'sdm' in self.current_task:
-            ret.update({'sdm_loss':objectives.compute_js_sdm(i_feats, t_feats, batch['pids'], logit_scale)})
+            ret.update({'sdm_loss':objectives.compute_js_sdm(
+                i_feats, t_feats, batch['pids'], logit_scale,
+                gamma=self.args.js_gamma,
+            )})
             ##############pgu##############
-            output_i, proto_recon_i = self.pgu_encode_i(image_feats.detach())
+            output_i, proto_recon_i = self.pgu_encode_i(image_feats)
             output_t, proto_recon_t = self.pgu_encode_t(
-                text_feats.detach(), caption_ids
+                text_feats, caption_ids
             )
             if self.cprod_variant == "prior":
                 ret.update({
@@ -396,7 +399,8 @@ class SAGAlignNet(nn.Module):
             output_i_c = torch.cat(output_i,dim=1).float()
             output_t_c = torch.cat(output_t,dim=1).float()
             local_prototype_loss = objectives.compute_js_sdm(
-                output_i_c, output_t_c, batch['pids'], logit_scale
+                output_i_c, output_t_c, batch['pids'], logit_scale,
+                gamma=self.args.js_gamma,
             )
             ret.update({
                 'xld_loss': local_prototype_loss
@@ -446,11 +450,18 @@ class SAGAlignNet(nn.Module):
                     shot_i = torch.gather(stored_labels.unsqueeze(0).repeat(numm, 1), dim=1, index=topk_indice_i)
                     shot_t = torch.gather(stored_labels.unsqueeze(0).repeat(numm, 1), dim=1, index=topk_indice_t)
 
-                    increment_tensor = (
-                        torch.ones_like(zero_tensor_i) * self.args.neighbor_weight
-                    ).to(i_feats.device)
-                    soft_label_i = zero_tensor_i + torch.scatter_add(torch.zeros_like(zero_tensor_i).to(i_feats.device), dim=1, index=shot_i, src=increment_tensor)
-                    soft_label_t = zero_tensor_t + torch.scatter_add(torch.zeros_like(zero_tensor_t).to(i_feats.device), dim=1, index=shot_t, src=increment_tensor)
+                    neighbor_src_i = torch.full_like(
+                        shot_i, self.args.neighbor_weight, dtype=zero_tensor_i.dtype
+                    )
+                    neighbor_src_t = torch.full_like(
+                        shot_t, self.args.neighbor_weight, dtype=zero_tensor_t.dtype
+                    )
+                    soft_label_i = zero_tensor_i.scatter_add(
+                        1, shot_i, neighbor_src_i
+                    )
+                    soft_label_t = zero_tensor_t.scatter_add(
+                        1, shot_t, neighbor_src_t
+                    )
 
                 lambda_value = self.args.lambda_
                 hard = objectives.compute_matching_label(

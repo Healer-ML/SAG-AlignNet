@@ -27,6 +27,8 @@ def _parser():
 
     parser.add_argument("--pretrain_choice", default="ViT-B/16")
     parser.add_argument("--temperature", type=float, default=0.01)
+    parser.add_argument("--js-gamma", "--js_gamma", dest="js_gamma", type=float,
+                        default=0.04, help="fixed JS-loss scale from the paper")
     parser.add_argument("--img_aug", dest="img_aug", default=True, action="store_true")
     parser.add_argument("--no-img-aug", dest="img_aug", action="store_false")
     parser.add_argument("--cmt_depth", type=int, default=4)
@@ -36,7 +38,7 @@ def _parser():
     parser.add_argument("--MLM", dest="MLM", default=True, action="store_true")
     parser.add_argument("--disable-mlm", dest="MLM", action="store_false")
 
-    parser.add_argument("--loss_names", default="itc+sdm+matching_label+mlm+adv")
+    parser.add_argument("--loss_names", default="itc+cprod+amp+masalign")
     parser.add_argument("--mlm_loss_weight", type=float, default=1.0)
     parser.add_argument("--rho", "--mask_pro", dest="rho", type=float, default=0.25,
                         help="token masking ratio (Fig. 8)")
@@ -147,9 +149,21 @@ def _normalize_config_keys(config):
 
 
 def _normalize_loss_names(value):
-    """Use descriptive task names while accepting the former `id` token."""
+    """Map paper-level objective names and legacy tokens to model branches."""
     names = [name.strip() for name in str(value).split("+") if name.strip()]
-    return "+".join("matching_label" if name == "id" else name for name in names)
+    aliases = {
+        "id": ("matching_label",),
+        "js": ("sdm",),
+        "cprod": ("sdm", "matching_label"),
+        "amp": ("adv",),
+        "masalign": ("mlm",),
+    }
+    normalized = []
+    for name in names:
+        for branch in aliases.get(name, (name,)):
+            if branch not in normalized:
+                normalized.append(branch)
+    return "+".join(normalized)
 
 
 def get_args(argv=None):
@@ -184,4 +198,6 @@ def get_args(argv=None):
         raise ValueError("neighbor_weight must be non-negative")
     if args.temperature <= 0.0:
         raise ValueError("temperature must be positive")
+    if args.js_gamma <= 0.0:
+        raise ValueError("js_gamma must be positive")
     return args
