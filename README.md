@@ -51,10 +51,12 @@ python tools/prepare_agrisearch.py \
 
 - **Encoder:** CLIP ViT-B/16 with 512-dimensional embeddings.
 - **Cross-modal Transformer:** 4 layers and 8 attention heads.
-- **CProD:** `K` shared learnable prototypes, per-prototype 512-to-512 projections, and a `K`-way prototype prediction head. It stores detached prototype features from the preceding epoch, retrieves top-`m` neighbors for each prototype, and uses the final prototype branch's neighborhood to form the neighbor-guided soft target, as specified in the paper. Epoch 1 uses hard-label supervision only; subsequent epochs mix hard and soft label losses with `lambda`.
-- **MasAlign:** masks eligible text tokens at ratio `rho`, then uses visual context for token reconstruction and binary masked-position prediction. Its error-augmented branch samples from the top `Ke=32` predictions and avoids replacing a masked token with its original token.
+- **CProD:** `K` shared learnable prototypes, per-prototype 512-to-512 projections, and a `K`-way prototype prediction head. Prototype attention reads the complete image sequence (CLS and patches) and the complete text sequence through EOS (SOS, tokens, and EOS), excluding only batch padding. It stores detached prototype features from the preceding epoch, retrieves top-`m` neighbors for each prototype, and uses the final prototype branch's neighborhood to form the neighbor-guided soft target, as specified in the paper. Epoch 1 uses hard-label supervision only; subsequent epochs mix hard and soft label losses with `lambda`.
+- **MasAlign:** masks eligible text tokens at probability `rho`, then uses visual context for token reconstruction and binary masked-position prediction. EOS-trailing padding is excluded from Transformer attention and position-prediction loss. Its error-augmented branch samples from the top `Ke=32` predictions and avoids replacing a masked token with its original token.
 - **JS alignment:** symmetric image-to-text and text-to-image JS divergence, with `tau=0.02` and fixed `gamma=0.04`.
-- **AMP:** a lightweight modality classifier trained with the visual/text modality labels.
+- **AMP:** a lightweight modality classifier trained on the unnormalized global CLS/EOS features with the visual/text modality labels.
+
+The global ITC, JS, AMP, and matching-label branches use the original, unmasked caption. MasAlign receives its separately masked caption. The overall objective sums ITC, JS, CProD, MasAlign, and AMP with equal outer weights; CProD and MasAlign retain their internal loss definitions.
 
 The model uses 384 × 128 images, a maximum text length of 77, and a 49,408-token prediction vocabulary. Image augmentation uses random horizontal flipping, cropping, and erasing.
 

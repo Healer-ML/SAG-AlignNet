@@ -159,31 +159,42 @@ class SAGAlignNet(nn.Module):
         print(f'Training Model with {self.current_task} tasks')
 
 
-    def cross_former(self, q, k, v):
+    def cross_former(self, q, k, v, key_padding_mask=None):
         x = self.cross_attn(
                 self.ln_pre_t(q),
                 self.ln_pre_i(k),
                 self.ln_pre_i(v),
                 need_weights=False)[0]
         x = x.permute(1, 0, 2)  # NLD -> LND
-        x = self.cross_modal_transformer(x)
+        x = self.cross_modal_transformer(
+            x, key_padding_mask=key_padding_mask
+        )
         x = x.permute(1, 0, 2)  # LND -> NLD
 
         x = self.ln_post(x)
         return x
 
-    def cross_former_error(self, q, k, v):
+    def cross_former_error(self, q, k, v, key_padding_mask=None):
         x = self.cross_attn_error(
                 self.ln_pre_t_e(q),
                 self.ln_pre_i_e(k),
                 self.ln_pre_i_e(v),
                 need_weights=False)[0]
         x = x.permute(1, 0, 2)  # NLD -> LND
-        x = self.cross_modal_transformer(x)
+        x = self.cross_modal_transformer(
+            x, key_padding_mask=key_padding_mask
+        )
         x = x.permute(1, 0, 2)  # LND -> NLD
 
         x = self.ln_post(x)
         return x
+
+    @staticmethod
+    def _text_padding_mask(caption_ids):
+        """Mask positions after CLIP's end-of-text token, preserving token ID 0."""
+        positions = torch.arange(caption_ids.size(1), device=caption_ids.device)
+        eos_positions = caption_ids.argmax(dim=-1)
+        return positions.unsqueeze(0) > eos_positions.unsqueeze(1)
 
     def encode_image(self, image):
         x = self.base_model.encode_image(image)
@@ -259,7 +270,7 @@ class SAGAlignNet(nn.Module):
 
     def rasa_mrtd_loss(self, logits, batch, image_feats):
         batch_size, text_length, vocab_size = logits.shape
-        topk = min(32, vocab_size)
+        topk = min(self.args.ke, vocab_size)
         candidates = torch.topk(logits.float(), topk, dim=-1).indices
         sampled = torch.randint(
             topk, (batch_size, text_length, 1), device=logits.device
@@ -275,7 +286,7 @@ class SAGAlignNet(nn.Module):
         pred = self.rasa_mrtd_head(fused).float()
         positions = torch.arange(text_length, device=logits.device).unsqueeze(0)
         eos = batch['caption_ids'].argmax(dim=-1).unsqueeze(1)
-        valid = batch['caption_ids'].ne(0) & positions.gt(0) & positions.lt(eos)
+        valid = positions.gt(0) & positions.lt(eos)
         if valid.any():
             return F.cross_entropy(pred[valid], labels[valid])
         return self.rasa_mrtd_head.weight.sum() * 0.0
@@ -300,7 +311,7 @@ class SAGAlignNet(nn.Module):
             ]
             return outputs, i_feature.float().sum() * 0.0
 
-        visual_tokens = i_feature[:, 1:, :]
+        visual_tokens = i_feature
         if self.cprod_variant == "plot":
             prototypes = self.plot_prototype_attention_i(
                 visual_tokens, self.prototype_slots
@@ -316,6 +327,8 @@ class SAGAlignNet(nn.Module):
         return self._prototype_list(prototypes), reconstruction_loss
 
     def pgu_encode_t(self, t_feature, caption_ids):
+        padding_mask = self._text_padding_mask(caption_ids)
+        valid = ~padding_mask
         if self.cprod_variant == "native":
             query_embed = self.query_embed_image.repeat(
                 t_feature.size(0), 1, 1
@@ -324,6 +337,7 @@ class SAGAlignNet(nn.Module):
                 self.ln_p_pgu(query_embed),
                 self.ln_t_pgu(t_feature),
                 self.ln_t_pgu(t_feature),
+                key_padding_mask=padding_mask,
                 need_weights=False,
             )[0]
             outputs = [
@@ -332,17 +346,11 @@ class SAGAlignNet(nn.Module):
             ]
             return outputs, t_feature.float().sum() * 0.0
 
-        text_tokens = t_feature[:, 1:, :]
-        token_ids = caption_ids[:, 1:]
-        positions = torch.arange(
-            1, caption_ids.size(1), device=caption_ids.device
-        ).unsqueeze(0)
-        eos_positions = caption_ids.argmax(dim=-1).unsqueeze(1)
-        valid = token_ids.ne(0) & positions.lt(eos_positions)
+        text_tokens = t_feature
 
         if self.cprod_variant == "plot":
             prototypes = self.plot_prototype_attention_t(
-                text_tokens, self.prototype_slots, padding_mask=~valid
+                text_tokens, self.prototype_slots, padding_mask=padding_mask
             )
             return self._prototype_list(prototypes), t_feature.float().sum() * 0.0
 
@@ -369,10 +377,8 @@ class SAGAlignNet(nn.Module):
         # output_i = [i_feats.unsqueeze(1)] * 6
         # output_t = [t_feats.unsqueeze(1)] * 6
         if 'adv' in self.current_task:
-            gi_feats = F.normalize(i_feats, dim=1)
-            gt_feats = F.normalize(t_feats, dim=1)
-            i_dis = self.discriminator((gi_feats).half()).float()
-            t_dis = self.discriminator((gt_feats).half()).float()
+            i_dis = self.discriminator(i_feats.half()).float()
+            t_dis = self.discriminator(t_feats.half()).float()
             y_real = torch.ones(i_feats.size(0)).to(i_feats.device)
             y_fake = torch.zeros(i_feats.size(0)).to(i_feats.device)
             BCE_loss = nn.BCEWithLogitsLoss()
@@ -488,10 +494,15 @@ class SAGAlignNet(nn.Module):
             mlm_feats = self.base_model.encode_text(mlm_ids)
             #o_text = self.base_model.encode_text(batch['caption_ids'])   #####add
             #mlm_feats = text_feats                                       #####add
-            x = self.cross_former(mlm_feats, image_feats, image_feats)
+            text_padding_mask = self._text_padding_mask(caption_ids)
+            x = self.cross_former(
+                mlm_feats, image_feats, image_feats,
+                key_padding_mask=text_padding_mask,
+            )
+            valid_text_positions = ~text_padding_mask
 
             if self.masalign_variant == "native":
-                mlme_pre = self.mlm_head_e(x).reshape(-1)
+                mlme_pre = self.mlm_head_e(x).squeeze(-1)
 
             x = self.mlm_head(x)
             scores = x.float().reshape(-1, self.args.vocab_size)
@@ -499,7 +510,11 @@ class SAGAlignNet(nn.Module):
 
             if self.masalign_variant == "native":
                 error_labels0 = mlm_labels.ne(0).long()
-                loss_pre0 = BCE_loss(mlme_pre.float(), error_labels0.float())
+                error_labels0 = error_labels0.view_as(valid_text_positions)
+                loss_pre0 = F.binary_cross_entropy_with_logits(
+                    mlme_pre[valid_text_positions].float(),
+                    error_labels0[valid_text_positions].float(),
+                )
                 ret.update({'mlm2_loss': loss_pre0 * self.args.mlm_loss_weight})
 
             ret.update({'mlm_loss': objectives.compute_mlm(scores, mlm_labels)*self.args.mlm_loss_weight})
@@ -507,8 +522,11 @@ class SAGAlignNet(nn.Module):
             scores = x.float().reshape(-1, self.args.vocab_size)
 
             pred = scores.max(1)[1] #一维tesor 616
-            mlm_label_idx = torch.nonzero(mlm_labels)
-            acc = (pred[mlm_label_idx] == mlm_labels[mlm_label_idx]).float().mean()
+            masked_positions = mlm_labels.ne(0)
+            if masked_positions.any():
+                acc = (pred[masked_positions] == mlm_labels[masked_positions]).float().mean()
+            else:
+                acc = scores.sum() * 0.0
             ret.update({'mlm_acc': acc})
 
             if self.masalign_variant == "native":
@@ -516,10 +534,16 @@ class SAGAlignNet(nn.Module):
                 for i in range(batch['mlm_ids'].size(0)):
                     mlm_i = batch['mlm_ids'][i].clone()
                     mlm_lain = torch.nonzero(batch['mlm_labels'][i]).squeeze()
-                    top_values, top_indices = torch.topk(x[i].float(), 32, dim=1, largest=True, sorted=True)
-                    random_indices = torch.randint(low=0, high=32, size=(77,))
-                    # 对 tensor 进行切片
-                    result = top_indices[torch.arange(77), random_indices]
+                    top_indices = torch.topk(
+                        x[i].float(), min(self.args.ke, x.size(-1)), dim=1,
+                        largest=True, sorted=True,
+                    ).indices
+                    random_indices = torch.randint(
+                        low=0, high=top_indices.size(1),
+                        size=(x.size(1),), device=x.device,
+                    )
+                    positions = torch.arange(x.size(1), device=x.device)
+                    result = top_indices[positions, random_indices]
                     mlm_i[mlm_lain] = result[mlm_lain]
                     if mlm_lain.dim() == 0:
                         mlm_lain = mlm_lain.unsqueeze(0)
@@ -534,7 +558,10 @@ class SAGAlignNet(nn.Module):
                 error_text = torch.stack(error_list)
 
                 error_feats = self.base_model.encode_text(error_text)
-                error_x = self.cross_former_error(error_feats, image_feats, image_feats)
+                error_x = self.cross_former_error(
+                    error_feats, image_feats, image_feats,
+                    key_padding_mask=text_padding_mask,
+                )
                 '''
                 error_pre = (self.mlm_head_e(error_x)).reshape(-1, 2)
 
@@ -547,13 +574,17 @@ class SAGAlignNet(nn.Module):
 
                 loss_pre = F.cross_entropy(error_pre, error_labels.float())/0.1
                 '''
-                error_pre = (self.mlm_head_e(error_x)).reshape(-1)
+                error_pre = self.mlm_head_e(error_x).squeeze(-1)
 
                 error_x = self.mlm_head(error_x)
                 scores_e = error_x.float().reshape(-1, self.args.vocab_size)
 
                 error_labels1 = torch.where(mlm_labels != 0, 1, mlm_labels)
-                loss_pre = BCE_loss(error_pre.float(), error_labels1.float())
+                error_labels1 = error_labels1.view_as(valid_text_positions)
+                loss_pre = F.binary_cross_entropy_with_logits(
+                    error_pre[valid_text_positions].float(),
+                    error_labels1[valid_text_positions].float(),
+                )
 
                 ret.update({'mlmpre_loss': loss_pre*self.args.mlm_loss_weight})
                 ret.update({'mlmerror_loss': objectives.compute_mlm(scores_e, mlm_labels)*self.args.mlm_loss_weight})

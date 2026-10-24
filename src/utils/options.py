@@ -32,8 +32,6 @@ def _parser():
     parser.add_argument("--img_aug", dest="img_aug", default=True, action="store_true")
     parser.add_argument("--no-img-aug", dest="img_aug", action="store_false")
     parser.add_argument("--cmt_depth", type=int, default=4)
-    parser.add_argument("--masked_token_rate", type=float, default=0.8)
-    parser.add_argument("--masked_token_unchanged_rate", type=float, default=0.1)
     parser.add_argument("--lr_factor", type=float, default=5.0)
     parser.add_argument("--MLM", dest="MLM", default=True, action="store_true")
     parser.add_argument("--disable-mlm", dest="MLM", action="store_false")
@@ -50,6 +48,8 @@ def _parser():
                         help="weight of the current matching label in soft targets (Fig. 8)")
     parser.add_argument("--K", "--num_prototypes", dest="K", type=int, default=6,
                         help="number of learnable prototypes (Fig. 9)")
+    parser.add_argument("--ke", type=int, default=32,
+                        help="top-K_e candidates for MasAlign error augmentation")
     parser.add_argument("--memory_size", type=int, default=-1)
     parser.add_argument("--n", "--memory_ratio", dest="n", type=float, default=1.0,
                         help="fraction of current training samples retained in the memory bank (Fig. 9)")
@@ -68,10 +68,8 @@ def _parser():
 
     parser.add_argument("--optimizer", default="Adam", choices=("SGD", "Adam", "AdamW"))
     parser.add_argument("--lr", type=float, default=1.0e-5)
-    parser.add_argument("--bias_lr_factor", type=float, default=2.0)
     parser.add_argument("--momentum", type=float, default=0.9)
     parser.add_argument("--weight_decay", type=float, default=4.4e-5)
-    parser.add_argument("--weight_decay_bias", type=float, default=0.0)
     parser.add_argument("--adam-beta1", "--adam_beta1", "--beta1", dest="adam_beta1",
                         type=float, default=0.9)
     parser.add_argument("--adam-beta2", "--adam_beta2", "--beta2", "--beta",
@@ -188,8 +186,8 @@ def get_args(argv=None):
         raise ValueError("rho must be in (0, 1]")
     if not 0.0 <= args.alpha <= 1.0:
         raise ValueError("alpha must be in [0, 1]")
-    if args.K <= 0 or args.m <= 0:
-        raise ValueError("K and m must be positive")
+    if args.K <= 0 or args.m <= 0 or args.ke < 2:
+        raise ValueError("K and m must be positive and ke must be at least 2")
     if not 0.0 < args.n <= 1.0:
         raise ValueError("n must be in (0, 1]")
     if not 0.0 <= args.lambda_ <= 1.0:

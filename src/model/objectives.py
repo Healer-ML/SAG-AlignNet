@@ -90,8 +90,9 @@ def compute_js_sdm(
 
 
 def compute_mlm(scores, labels):
-    ce = nn.CrossEntropyLoss(ignore_index=0)
-    return ce(scores, labels)
+    if not labels.ne(0).any():
+        return scores.sum() * 0.0
+    return F.cross_entropy(scores, labels, ignore_index=0)
 
 
 def compute_mlm_6(scores, labels):

@@ -11,19 +11,10 @@ def build_optimizer(args, model):
     for key, value in model.named_parameters():
         if not value.requires_grad:
             continue
-        lr = args.lr
+        # CLIP weights are pretrained; every other trainable parameter belongs
+        # to a randomly initialized SAG-AlignNet module and follows the paper's 5x LR.
+        lr = args.lr if key.startswith("base_model.") else args.lr * args.lr_factor
         weight_decay = args.weight_decay
-
-        if "cross" in key:
-            # use large learning rate for random initialized cross modal module
-            lr =  args.lr * args.lr_factor # default 5.0
-        if "bias" in key:
-            lr = args.lr * args.bias_lr_factor
-            weight_decay = args.weight_decay_bias
-        if "classifier" in key or "mlm_head" in key:
-            lr = args.lr * args.lr_factor
-        if "query_embed_image" in key or "fc_layers" in key:
-            lr = args.lr * args.lr_factor
 
         params += [{"params": [value], "lr": lr, "weight_decay": weight_decay}]
 

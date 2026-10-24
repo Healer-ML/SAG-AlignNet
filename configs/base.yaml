@@ -13,8 +13,6 @@ temperature: 0.02
 js_gamma: 0.04
 img_aug: true
 cmt_depth: 4
-masked_token_rate: 0.8
-masked_token_unchanged_rate: 0.1
 lr_factor: 5.0
 MLM: true
 
@@ -24,6 +22,7 @@ alpha: 0.1
 rho: 0.25
 mask_strategy: random
 K: 6
+ke: 32
 memory_size: -1
 n: 1.0
 m: 100
@@ -37,10 +36,8 @@ vocab_size: 49408
 
 optimizer: Adam
 lr: 0.00001
-bias_lr_factor: 2.0
 momentum: 0.9
 weight_decay: 0.000044
-weight_decay_bias: 0.0
 adam_beta1: 0.9
 adam_beta2: 0.999
 
